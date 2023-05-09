@@ -58,3 +58,14 @@ func DumpConfig() {
 	utilfuncs.PanicIfError(err, "dump json")
 	fmt.Println(b)
 }
+
+func LoadConfigs(folderConfig FolderConfig, envPrefix string) (folderConfigActual FolderConfig) {
+	// init logger first.
+	folderConfigActual = EnsureFolders(folderConfig)
+
+	ReadNormalConfig(folderConfigActual.Config)
+	ReadPrivate(folderConfigActual.Private)
+	ReadEnvConfig(envPrefix)
+	DumpConfig()
+	return
+}

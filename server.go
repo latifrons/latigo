@@ -13,7 +13,6 @@ import (
 
 type BasicRpcServer struct {
 	Name              string
-	FolderConfig      program.FolderConfig
 	EnvPrefix         string
 	DumpConfigOnStart bool
 	LogLevel          string
@@ -54,15 +53,6 @@ func (b *BasicRpcServer) SetupInjector(injector boot.Injector) {
 }
 
 func (b *BasicRpcServer) setup() {
-	// init logger first.
-	b.FolderConfig = program.EnsureFolders(b.FolderConfig)
-
-	program.ReadNormalConfig(b.FolderConfig.Config)
-	program.ReadPrivate(b.FolderConfig.Private)
-	program.ReadEnvConfig(b.EnvPrefix)
-	program.DumpConfig()
-	program.SetupLogger(b.LogLevel)
-
 	if b.bootService != nil {
 		b.bootService.InitJobs()
 	}
@@ -86,6 +76,7 @@ func (b *BasicRpcServer) setup() {
 func (b *BasicRpcServer) Start() {
 	logrus.Info(b.Name + " Starting")
 	b.setup()
+
 	if b.bootService != nil {
 		b.bootService.Boot()
 	}
@@ -110,14 +101,7 @@ func (b *BasicRpcServer) Start() {
 
 func NewDefaultBasicRpcServer() BasicRpcServer {
 	return BasicRpcServer{
-		Name: "LatiServer",
-		FolderConfig: program.FolderConfig{
-			Root:    "data",
-			Log:     "",
-			Data:    "",
-			Config:  "",
-			Private: "",
-		},
+		Name:              "LatiServer",
 		EnvPrefix:         "INJ",
 		DumpConfigOnStart: true,
 		LogLevel:          "INFO",
