@@ -4,8 +4,7 @@ go 1.19
 
 require (
 	github.com/afex/hystrix-go v0.0.0-20180502004556-fa1af6a1f4f5
-	github.com/gin-contrib/zap v0.1.0
-	github.com/gin-gonic/gin v1.8.1
+	github.com/gin-gonic/gin v1.7.7
 	github.com/go-co-op/gocron v1.12.0
 	github.com/latifrons/commongo v0.0.11
 	github.com/pkg/errors v0.8.1
