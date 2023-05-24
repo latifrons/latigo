@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/latifrons/latigo/berror"
-	"github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 	"net/http"
 )
 
@@ -16,12 +16,13 @@ type RpcWrapperFlags struct {
 }
 
 type RpcWrapper struct {
-	Flags RpcWrapperFlags
+	Flags  RpcWrapperFlags
+	Logger *zap.SugaredLogger
 }
 
 func (rpc *RpcWrapper) Response(c *gin.Context, status int, code string, msg string, data interface{}) {
 	if rpc.Flags.ResponseLog {
-		logrus.WithField("data", data).WithField("msg", msg).WithField("code", code).WithField("status", status).Info("resp")
+		rpc.Logger.Infow("resp", "data", data, "msg", msg, "code", code, "status", status)
 	}
 	c.JSON(status, GeneralResponse{
 		Code: code,
@@ -31,7 +32,7 @@ func (rpc *RpcWrapper) Response(c *gin.Context, status int, code string, msg str
 }
 func (rpc *RpcWrapper) ResponseOK(c *gin.Context, data interface{}) {
 	if rpc.Flags.ResponseLog {
-		logrus.WithField("data", data).Info("resp ok")
+		rpc.Logger.Infow("resp ok", "data", data)
 	}
 	c.JSON(http.StatusOK, GeneralResponse{
 		Code: CodeOK,
@@ -73,7 +74,7 @@ func (rpc *RpcWrapper) ResponseBadRequest(c *gin.Context, err error, userMessage
 	if err == nil {
 		return false
 	}
-	logrus.WithError(err).Debug("bad request")
+	rpc.Logger.Debugw("bad request", "err", err, "userMessage", userMessage)
 	if userMessage != "" {
 		rpc.Response(c, http.StatusBadRequest, ErrBadRequest, userMessage, nil)
 	} else if rpc.Flags.ReturnDetailError {
@@ -88,7 +89,7 @@ func (rpc *RpcWrapper) ResponseInternalServerError(c *gin.Context, err error) bo
 	if err == nil {
 		return false
 	}
-	logrus.WithError(err).Error("internal error")
+	rpc.Logger.Errorw("internal error", "err", err)
 	if rpc.Flags.ReturnDetailError {
 		rpc.Response(c, http.StatusInternalServerError, ErrInternal, err.Error(), nil)
 	} else {
@@ -137,7 +138,7 @@ func (rpc *RpcWrapper) ResponseError(c *gin.Context, err error) bool {
 
 func (rpc *RpcWrapper) ResponseEmptyParam(c *gin.Context, name string, value string) bool {
 	if value == "" {
-		logrus.Debug("param missing")
+		rpc.Logger.Debug("param missing")
 		rpc.Response(c, http.StatusBadRequest, ErrBadRequest, "param missing: "+name, nil)
 		return true
 	}
@@ -146,7 +147,7 @@ func (rpc *RpcWrapper) ResponseEmptyParam(c *gin.Context, name string, value str
 
 func (rpc *RpcWrapper) ResponseEmptyField(c *gin.Context, name string, value string) bool {
 	if value == "" {
-		logrus.Debug("body field missing")
+		rpc.Logger.Debug("body field missing")
 		rpc.Response(c, http.StatusBadRequest, ErrBadRequest, "body field missing: "+name, nil)
 		return true
 	}

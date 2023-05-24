@@ -1,7 +1,6 @@
 package program
 
 import (
-	"github.com/sirupsen/logrus"
 	"os"
 	"path"
 )
@@ -29,8 +28,9 @@ func mkDirPermIfNotExists(path string, perm os.FileMode) error {
 func ensureFolder(folder string, perm os.FileMode) {
 	err := mkDirPermIfNotExists(folder, perm)
 	if err != nil {
-		logrus.WithError(err).WithField("path", folder).Fatal("failed to create folder")
+		panic(err)
 	}
+	return
 }
 
 func defaultPath(givenPath string, defaultRoot string, suffix string) string {

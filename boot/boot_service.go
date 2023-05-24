@@ -1,7 +1,7 @@
 package boot
 
 import (
-	"github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 	"strings"
 )
 
@@ -18,6 +18,7 @@ type BootJob struct {
 
 type BootService struct {
 	BootJobProvider BootJobProvider
+	Logger          *zap.SugaredLogger
 	jobs            []BootJob
 	jobEnabled      map[string]bool
 }
@@ -35,7 +36,7 @@ func (s *BootService) InitJobs() {
 		if v, ok := s.jobEnabled[strings.ToLower(job.Name)]; ok && v {
 			s.jobs = append(s.jobs, job)
 		} else {
-			logrus.WithField("name", job.Name).Info("boot job disabled")
+			s.Logger.Infow("boot job disabled", "name", job.Name)
 		}
 	}
 }
@@ -43,13 +44,13 @@ func (s *BootService) InitJobs() {
 func (s *BootService) Boot() {
 	var err error
 	for _, job := range s.jobs {
-		logrus.WithField("name", job.Name).Info("starting job")
+		s.Logger.Infow("starting boot job", "name", job.Name)
 		err = job.Function()
 		if err != nil {
 			if job.FaultTolerant {
-				logrus.WithError(err).WithField("name", job.Name).Error("failed to execute boot job")
+				s.Logger.Errorw("failed to execute boot job", "name", job.Name, "error", err)
 			} else {
-				logrus.WithError(err).WithField("name", job.Name).Fatal("failed to execute boot job")
+				s.Logger.Fatalw("failed to execute boot job", "name", job.Name, "error", err)
 			}
 		}
 	}

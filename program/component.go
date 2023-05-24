@@ -1,7 +1,7 @@
 package program
 
 import (
-	"github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 	"strings"
 )
 
@@ -18,6 +18,7 @@ type ComponentProvider interface {
 }
 
 type ComponentService struct {
+	Logger            *zap.SugaredLogger
 	ComponentProvider ComponentProvider
 	components        []Component
 	componentsEnabled map[string]bool
@@ -35,7 +36,7 @@ func (n *ComponentService) InitComponents() {
 		if v, ok := n.componentsEnabled[strings.ToLower(component.Name())]; ok && v {
 			n.components = append(n.components, component)
 		} else {
-			logrus.WithField("name", component.Name).Info("component disabled")
+			n.Logger.Infow("component disabled", "name", component.Name())
 		}
 	}
 }
@@ -46,19 +47,20 @@ func (n *ComponentService) AddComponent(component Component) {
 
 func (n *ComponentService) Start() {
 	for _, component := range n.components {
-		logrus.Infof("Starting %s", component.Name())
+		n.Logger.Infow("starting component", "name", component.Name())
 		component.Start()
-		logrus.Infof("Started: %s", component.Name())
+		n.Logger.Infow("started component", "name", component.Name())
 	}
-	logrus.Info("All components started")
+	n.Logger.Infow("all components started")
 }
 
 func (n *ComponentService) Stop() {
 	for i := len(n.components) - 1; i >= 0; i-- {
 		comp := n.components[i]
-		logrus.Infof("Stopping %s", comp.Name())
+		n.Logger.Infow("stopping component", "name", comp.Name())
+
 		comp.Stop()
-		logrus.Infof("Stopped: %s", comp.Name())
+		n.Logger.Infow("stopped component", "name", comp.Name())
 	}
-	logrus.Info("All components stopped")
+	n.Logger.Infow("all components stopped")
 }

@@ -2,7 +2,7 @@ package cron
 
 import (
 	"github.com/go-co-op/gocron"
-	"github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 	"strings"
 	"time"
 )
@@ -21,6 +21,7 @@ type CronJobProvider interface {
 
 type CronService struct {
 	CronJobProvider CronJobProvider
+	Logger          *zap.SugaredLogger
 	cr              *gocron.Scheduler
 	jobs            []CronJob
 	jobEnabled      map[string]bool
@@ -38,7 +39,7 @@ func (s *CronService) InitJobs() {
 		if v, ok := s.jobEnabled[strings.ToLower(job.Name)]; ok && v {
 			s.jobs = append(s.jobs, job)
 		} else {
-			logrus.WithField("name", job.Name).Info("boot job disabled")
+			s.Logger.Infow("boot job disabled", "name", job.Name)
 		}
 	}
 }
@@ -49,7 +50,7 @@ func (c *CronService) Start() {
 	for _, job := range c.jobs {
 		_, err := c.cr.Every(job.Interval).Do(job.Function, job.Params...)
 		if err != nil {
-			logrus.WithError(err).WithField("name", job.Name).Fatal("failed to start cron job")
+			c.Logger.Fatalw("failed to start cron job", "name", job.Name, "error", err)
 		}
 	}
 	c.cr.StartAsync()

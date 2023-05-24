@@ -4,14 +4,13 @@ import (
 	"github.com/latifrons/latigo/boot"
 	"github.com/latifrons/latigo/cron"
 	"github.com/latifrons/latigo/program"
-	"github.com/latifrons/latigo/rpcserver"
 	"go.uber.org/zap"
 	"os"
 	"os/signal"
 	"syscall"
 )
 
-type BasicRpcServer struct {
+type BasicServer struct {
 	Name              string
 	EnvPrefix         string
 	DumpConfigOnStart bool
@@ -21,43 +20,33 @@ type BasicRpcServer struct {
 	bootService      *boot.BootService
 	cronService      *cron.CronService
 	componentService *program.ComponentService
-	server           *rpcserver.RpcServer
 	injector         boot.Injector
 }
 
-func (b *BasicRpcServer) SetupBootJob(bootJobProvider boot.BootJobProvider) {
+func (b *BasicServer) SetupBootJob(bootJobProvider boot.BootJobProvider) {
 	b.bootService = &boot.BootService{
 		BootJobProvider: bootJobProvider,
 		Logger:          b.Logger,
 	}
 }
-func (b *BasicRpcServer) SetupCronJob(cronJobProvider cron.CronJobProvider) {
+func (b *BasicServer) SetupCronJob(cronJobProvider cron.CronJobProvider) {
 	b.cronService = &cron.CronService{
 		CronJobProvider: cronJobProvider,
 		Logger:          b.Logger,
 	}
 }
 
-func (b *BasicRpcServer) SetupComponentProvider(componentProvider program.ComponentProvider) {
+func (b *BasicServer) SetupComponentProvider(componentProvider program.ComponentProvider) {
 	b.componentService = &program.ComponentService{
 		ComponentProvider: componentProvider,
 		Logger:            b.Logger,
 	}
 }
-func (b *BasicRpcServer) SetupServer(provider rpcserver.RouterProvider, port string, debugFlags rpcserver.DebugFlags) {
-	b.server = &rpcserver.RpcServer{
-		RouterProvider: provider,
-		Port:           port,
-		DebugFlags:     debugFlags,
-		Logger:         zap.S(),
-	}
-}
-
-func (b *BasicRpcServer) SetupInjector(injector boot.Injector) {
+func (b *BasicServer) SetupInjector(injector boot.Injector) {
 	b.injector = injector
 }
 
-func (b *BasicRpcServer) setup() {
+func (b *BasicServer) setup() {
 	if b.bootService != nil {
 		b.bootService.InitJobs()
 	}
@@ -67,10 +56,6 @@ func (b *BasicRpcServer) setup() {
 	}
 	b.componentService.InitComponents()
 
-	if b.server != nil {
-		b.server.InitDefault()
-		b.componentService.AddComponent(b.server)
-	}
 	if b.cronService != nil {
 		b.cronService.InitJobs()
 
@@ -78,8 +63,8 @@ func (b *BasicRpcServer) setup() {
 	}
 }
 
-func (b *BasicRpcServer) Start() {
-	b.Logger.Infow("Starting basic rpc server", "name", b.Name)
+func (b *BasicServer) Start() {
+	b.Logger.Infow("Starting basic server", "name", b.Name)
 	b.setup()
 
 	if b.bootService != nil {
@@ -104,8 +89,8 @@ func (b *BasicRpcServer) Start() {
 	}()
 }
 
-func NewDefaultBasicRpcServer() BasicRpcServer {
-	return BasicRpcServer{
+func NewDefaultBasicServer() BasicServer {
+	return BasicServer{
 		Name:              "LatiServer",
 		EnvPrefix:         "INJ",
 		DumpConfigOnStart: true,

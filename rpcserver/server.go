@@ -6,10 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/afex/hystrix-go/hystrix"
+	"github.com/gin-contrib/zap"
 	"github.com/gin-gonic/gin"
-	"github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
@@ -32,6 +32,7 @@ type RpcServer struct {
 	RouterProvider RouterProvider
 	Port           string
 	DebugFlags     DebugFlags
+	Logger         *zap.SugaredLogger
 
 	router *gin.Engine
 	server *http.Server
@@ -47,11 +48,11 @@ func (srv *RpcServer) Start() {
 		Handler: srv.router,
 	}
 
-	logrus.Infof("listening Http on %s", srv.Port)
+	srv.Logger.Infow("listening Http on " + srv.Port)
 	go func() {
 		// service connections
 		if err := srv.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logrus.WithError(err).Fatalf("berror in Http rpcserver")
+			srv.Logger.Fatalw("error in Http rpcserver", "err", err)
 		}
 	}()
 }
@@ -60,9 +61,9 @@ func (srv *RpcServer) Stop() {
 	ctx, cancel := context.WithTimeout(context.Background(), ShutdownTimeoutSeconds*time.Second)
 	defer cancel()
 	if err := srv.server.Shutdown(ctx); err != nil {
-		logrus.WithError(err).Error("error while shutting down the Http rpcserver")
+		srv.Logger.Errorw("error while shutting down the Http rpcserver", "err", err)
 	}
-	logrus.Infof("http rpcserver Stopped")
+	srv.Logger.Infow("http rpcserver Stopped")
 }
 
 func (srv *RpcServer) Name() string {
@@ -70,7 +71,9 @@ func (srv *RpcServer) Name() string {
 }
 
 func (srv *RpcServer) InitDefault() {
-
+	if srv.Logger == nil {
+		srv.Logger = zap.NewExample().Sugar()
+	}
 }
 
 func (srv *RpcServer) initRouter() *gin.Engine {
@@ -81,34 +84,30 @@ func (srv *RpcServer) initRouter() *gin.Engine {
 	}
 	router := gin.New()
 	if srv.DebugFlags.RequestLog || srv.DebugFlags.ResponseLog {
-		if logrus.GetLevel() >= logrus.DebugLevel {
-			logger := gin.LoggerWithConfig(gin.LoggerConfig{
-				SkipPaths: []string{"/", "/health"},
-			})
-			router.Use(logger)
-			if srv.DebugFlags.RequestLog {
-				router.Use(RequestLoggerMiddleware())
-			}
+		logger := gin.LoggerWithConfig(gin.LoggerConfig{
+			SkipPaths: []string{"/", "/health"},
+		})
+		router.Use(logger)
+		if srv.DebugFlags.RequestLog {
+			router.Use(RequestLoggerMiddleware())
+		}
 
-			if srv.DebugFlags.ResponseLog {
-				router.Use(ResponseLoggerMiddleware())
-			}
-		} else {
-			logger := gin.LoggerWithConfig(gin.LoggerConfig{
-				SkipPaths: []string{"/", "/health"},
-			})
-			router.Use(logger)
+		if srv.DebugFlags.ResponseLog {
+			router.Use(ResponseLoggerMiddleware())
 		}
 	}
 
-	router.Use(gin.RecoveryWithWriter(logrus.StandardLogger().Out))
+	logger, err := zap.NewDevelopment()
+	if err != nil {
+		panic(err)
+	}
+
+	router.Use(ginzap.Ginzap(logger, time.RFC3339, true))
+	router.Use(ginzap.RecoveryWithZap(logger, true))
 	return router
 }
 
 var ginLogFormatter = func(param gin.LogFormatterParams) string {
-	if logrus.GetLevel() < logrus.TraceLevel {
-		return ""
-	}
 	var statusColor, methodColor, resetColor string
 	if param.IsOutputColor() {
 		statusColor = param.StatusCodeColor()
@@ -164,11 +163,9 @@ func RequestLoggerMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var buf bytes.Buffer
 		tee := io.TeeReader(c.Request.Body, &buf)
-		body, _ := ioutil.ReadAll(tee)
-		c.Request.Body = ioutil.NopCloser(&buf)
-		logrus.WithField("uri", c.Request.RequestURI).Trace("Received request")
-		logrus.Trace(c.Request.Header)
-		logrus.Trace(string(body))
+		body, _ := io.ReadAll(tee)
+		c.Request.Body = io.NopCloser(&buf)
+		zap.S().Debugw("Received request", "uri", c.Request.RequestURI, "headers", c.Request.Header, "body", string(body))
 		c.Next()
 	}
 }
@@ -199,6 +196,6 @@ func ResponseLoggerMiddleware() gin.HandlerFunc {
 		if strings.HasPrefix(c.Request.RequestURI, "/swagger/") {
 			return
 		}
-		fmt.Println("Response body: " + blw.body.String())
+		zap.S().Debugw("Response", "body", blw.body.String())
 	}
 }

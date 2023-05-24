@@ -3,7 +3,6 @@ package berror
 import (
 	"fmt"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 type ErrorCategory int
@@ -41,11 +40,6 @@ func New(code string, msg string, errorCategory ErrorCategory) *BError {
 		ErrorCategory: errorCategory,
 		StackTrace:    errors.New("").(StackTracer).StackTrace(),
 	}
-	logrus.
-		WithField("code", code).
-		WithField("msg", msg).
-		Debug("error generated")
-	//fmt.Printf("%+v\n", b.StackTrace)
 	return b
 }
 
