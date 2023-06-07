@@ -1,10 +1,9 @@
 package rpcserver
 
 import (
-	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/latifrons/latigo/berror"
-	"go.uber.org/zap"
+	"github.com/rs/zerolog/log"
 	"net/http"
 )
 
@@ -12,18 +11,13 @@ const CodeOK = "OK"
 
 type RpcWrapperFlags struct {
 	ReturnDetailError bool
-	ResponseLog       bool
 }
 
 type RpcWrapper struct {
-	Flags  RpcWrapperFlags
-	Logger *zap.SugaredLogger
+	Flags RpcWrapperFlags
 }
 
 func (rpc *RpcWrapper) Response(c *gin.Context, status int, code string, msg string, data interface{}) {
-	if rpc.Flags.ResponseLog {
-		rpc.Logger.Infow("resp", "data", data, "msg", msg, "code", code, "status", status)
-	}
 	c.JSON(status, GeneralResponse{
 		Code: code,
 		Msg:  msg,
@@ -31,9 +25,6 @@ func (rpc *RpcWrapper) Response(c *gin.Context, status int, code string, msg str
 	})
 }
 func (rpc *RpcWrapper) ResponseOK(c *gin.Context, data interface{}) {
-	if rpc.Flags.ResponseLog {
-		rpc.Logger.Infow("resp ok", "data", data)
-	}
 	c.JSON(http.StatusOK, GeneralResponse{
 		Code: CodeOK,
 		Msg:  "",
@@ -74,7 +65,6 @@ func (rpc *RpcWrapper) ResponseBadRequest(c *gin.Context, err error, userMessage
 	if err == nil {
 		return false
 	}
-	rpc.Logger.Debugw("bad request", "err", err, "userMessage", userMessage)
 	if userMessage != "" {
 		rpc.Response(c, http.StatusBadRequest, ErrBadRequest, userMessage, nil)
 	} else if rpc.Flags.ReturnDetailError {
@@ -89,7 +79,8 @@ func (rpc *RpcWrapper) ResponseInternalServerError(c *gin.Context, err error) bo
 	if err == nil {
 		return false
 	}
-	rpc.Logger.Errorw("internal error", "err", err)
+	log.Error().Err(err).Stack().Msg("internal server error")
+
 	if rpc.Flags.ReturnDetailError {
 		rpc.Response(c, http.StatusInternalServerError, ErrInternal, err.Error(), nil)
 	} else {
@@ -124,13 +115,7 @@ func (rpc *RpcWrapper) ResponseError(c *gin.Context, err error) bool {
 		if err == nil {
 			return false
 		}
-		fmt.Printf("%s", err.Error())
-		if v, ok := err.(berror.StackTracer); ok {
-			fmt.Println(v.StackTrace())
-		} else {
-			fmt.Printf("%s", err.Error())
-		}
-
+		log.Error().Err(err).Stack().Msg("internal error")
 		rpc.Response(c, http.StatusInternalServerError, ErrInternal, err.Error(), nil)
 	}
 	return true
@@ -138,7 +123,6 @@ func (rpc *RpcWrapper) ResponseError(c *gin.Context, err error) bool {
 
 func (rpc *RpcWrapper) ResponseEmptyParam(c *gin.Context, name string, value string) bool {
 	if value == "" {
-		rpc.Logger.Debug("param missing")
 		rpc.Response(c, http.StatusBadRequest, ErrBadRequest, "param missing: "+name, nil)
 		return true
 	}
@@ -147,7 +131,6 @@ func (rpc *RpcWrapper) ResponseEmptyParam(c *gin.Context, name string, value str
 
 func (rpc *RpcWrapper) ResponseEmptyField(c *gin.Context, name string, value string) bool {
 	if value == "" {
-		rpc.Logger.Debug("body field missing")
 		rpc.Response(c, http.StatusBadRequest, ErrBadRequest, "body field missing: "+name, nil)
 		return true
 	}

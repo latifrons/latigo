@@ -1,13 +1,13 @@
 package boot
 
 import (
-	"go.uber.org/zap"
+	"github.com/rs/zerolog/log"
 	"strings"
 )
 
 type BootJobProvider interface {
 	ProvideAllJobs() []BootJob
-	ProvideEnabledJobs() map[string]bool
+	ProvideDisabledJobs() map[string]bool
 }
 
 type BootJob struct {
@@ -18,9 +18,8 @@ type BootJob struct {
 
 type BootService struct {
 	BootJobProvider BootJobProvider
-	Logger          *zap.SugaredLogger
 	jobs            []BootJob
-	jobEnabled      map[string]bool
+	jobDisabled     map[string]bool
 }
 
 func (s *BootService) InitJobs() {
@@ -30,13 +29,13 @@ func (s *BootService) InitJobs() {
 	}
 
 	jobs := s.BootJobProvider.ProvideAllJobs()
-	s.jobEnabled = s.BootJobProvider.ProvideEnabledJobs()
+	s.jobDisabled = s.BootJobProvider.ProvideDisabledJobs()
 
 	for _, job := range jobs {
-		if v, ok := s.jobEnabled[strings.ToLower(job.Name)]; ok && v {
-			s.jobs = append(s.jobs, job)
+		if _, ok := s.jobDisabled[strings.ToLower(job.Name)]; ok {
+			log.Info().Str("name", job.Name).Msg("boot job disabled")
 		} else {
-			s.Logger.Infow("boot job disabled", "name", job.Name)
+			s.jobs = append(s.jobs, job)
 		}
 	}
 }
@@ -44,13 +43,13 @@ func (s *BootService) InitJobs() {
 func (s *BootService) Boot() {
 	var err error
 	for _, job := range s.jobs {
-		s.Logger.Infow("starting boot job", "name", job.Name)
+		log.Info().Str("name", job.Name).Msg("starting boot job")
 		err = job.Function()
 		if err != nil {
 			if job.FaultTolerant {
-				s.Logger.Errorw("failed to execute boot job", "name", job.Name, "error", err)
+				log.Error().Err(err).Str("name", job.Name).Msg("failed to execute boot job")
 			} else {
-				s.Logger.Fatalw("failed to execute boot job", "name", job.Name, "error", err)
+				log.Fatal().Err(err).Str("name", job.Name).Msg("failed to execute boot job")
 			}
 		}
 	}

@@ -2,7 +2,7 @@ package cron
 
 import (
 	"github.com/go-co-op/gocron"
-	"go.uber.org/zap"
+	"github.com/rs/zerolog/log"
 	"strings"
 	"time"
 )
@@ -16,15 +16,14 @@ type CronJob struct {
 
 type CronJobProvider interface {
 	ProvideAllJobs() []CronJob
-	ProvideEnabledJobs() map[string]bool
+	ProvideDisabledJobs() map[string]bool
 }
 
 type CronService struct {
 	CronJobProvider CronJobProvider
-	Logger          *zap.SugaredLogger
 	cr              *gocron.Scheduler
 	jobs            []CronJob
-	jobEnabled      map[string]bool
+	jobDisabled     map[string]bool
 }
 
 func (s *CronService) InitJobs() {
@@ -33,13 +32,13 @@ func (s *CronService) InitJobs() {
 		return
 	}
 	jobs := s.CronJobProvider.ProvideAllJobs()
-	s.jobEnabled = s.CronJobProvider.ProvideEnabledJobs()
+	s.jobDisabled = s.CronJobProvider.ProvideDisabledJobs()
 
 	for _, job := range jobs {
-		if v, ok := s.jobEnabled[strings.ToLower(job.Name)]; ok && v {
+		if v, ok := s.jobDisabled[strings.ToLower(job.Name)]; ok && v {
 			s.jobs = append(s.jobs, job)
 		} else {
-			s.Logger.Infow("boot job disabled", "name", job.Name)
+			log.Info().Str("name", job.Name).Msg("boot job disabled")
 		}
 	}
 }
@@ -50,7 +49,7 @@ func (c *CronService) Start() {
 	for _, job := range c.jobs {
 		_, err := c.cr.Every(job.Interval).Do(job.Function, job.Params...)
 		if err != nil {
-			c.Logger.Fatalw("failed to start cron job", "name", job.Name, "error", err)
+			log.Fatal().Err(err).Str("name", job.Name).Msg("failed to start cron job")
 		}
 	}
 	c.cr.StartAsync()

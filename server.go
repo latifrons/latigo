@@ -5,7 +5,7 @@ import (
 	"github.com/latifrons/latigo/cron"
 	"github.com/latifrons/latigo/program"
 	"github.com/latifrons/latigo/rpcserver"
-	"go.uber.org/zap"
+	"github.com/rs/zerolog/log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -15,41 +15,27 @@ type BasicRpcServer struct {
 	Name              string
 	EnvPrefix         string
 	DumpConfigOnStart bool
-	Logger            *zap.SugaredLogger
-	LogLevel          string
-
-	bootService      *boot.BootService
-	cronService      *cron.CronService
-	componentService *program.ComponentService
-	server           *rpcserver.RpcServer
-	injector         boot.Injector
+	bootService       *boot.BootService
+	cronService       *cron.CronService
+	componentService  *program.ComponentService
+	server            *rpcserver.RpcServer
+	injector          boot.Injector
 }
 
 func (b *BasicRpcServer) SetupBootJob(bootJobProvider boot.BootJobProvider) {
 	b.bootService = &boot.BootService{
 		BootJobProvider: bootJobProvider,
-		Logger:          b.Logger,
 	}
 }
 func (b *BasicRpcServer) SetupCronJob(cronJobProvider cron.CronJobProvider) {
 	b.cronService = &cron.CronService{
 		CronJobProvider: cronJobProvider,
-		Logger:          b.Logger,
 	}
 }
 
 func (b *BasicRpcServer) SetupComponentProvider(componentProvider program.ComponentProvider) {
 	b.componentService = &program.ComponentService{
 		ComponentProvider: componentProvider,
-		Logger:            b.Logger,
-	}
-}
-func (b *BasicRpcServer) SetupServer(provider rpcserver.RouterProvider, port string, debugFlags rpcserver.DebugFlags) {
-	b.server = &rpcserver.RpcServer{
-		RouterProvider: provider,
-		Port:           port,
-		DebugFlags:     debugFlags,
-		Logger:         zap.S(),
 	}
 }
 
@@ -79,7 +65,7 @@ func (b *BasicRpcServer) setup() {
 }
 
 func (b *BasicRpcServer) Start() {
-	b.Logger.Infow("Starting basic rpc server", "name", b.Name)
+	log.Info().Str("name", b.Name).Msg("Starting basic rpc server")
 	b.setup()
 
 	if b.bootService != nil {
@@ -97,8 +83,8 @@ func (b *BasicRpcServer) Start() {
 
 	func() {
 		sig := <-gracefulStop
-		b.Logger.Infow("caught sig", "sig", sig)
-		b.Logger.Infow("Exiting... Please do no kill me")
+		log.Info().Str("name", b.Name).Str("signal", sig.String()).Msg("caught sig")
+		log.Info().Str("name", b.Name).Msg("Exiting... Please do no kill me")
 		b.componentService.Stop()
 		os.Exit(0)
 	}()
@@ -109,7 +95,5 @@ func NewDefaultBasicRpcServer() BasicRpcServer {
 		Name:              "LatiServer",
 		EnvPrefix:         "INJ",
 		DumpConfigOnStart: true,
-		LogLevel:          "INFO",
-		Logger:            zap.S(),
 	}
 }
