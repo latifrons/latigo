@@ -4,17 +4,16 @@ import (
 	"github.com/latifrons/latigo/boot"
 	"github.com/latifrons/latigo/cron"
 	"github.com/latifrons/latigo/program"
-	"go.uber.org/zap"
+	"github.com/rs/zerolog/log"
 	"os"
 	"os/signal"
 	"syscall"
 )
 
-type BasicServer struct {
+type BasicEngine struct {
 	Name              string
 	EnvPrefix         string
 	DumpConfigOnStart bool
-	Logger            *zap.SugaredLogger
 	LogLevel          string
 
 	bootService      *boot.BootService
@@ -23,30 +22,27 @@ type BasicServer struct {
 	injector         boot.Injector
 }
 
-func (b *BasicServer) SetupBootJob(bootJobProvider boot.BootJobProvider) {
+func (b *BasicEngine) SetupBootJob(bootJobProvider boot.BootJobProvider) {
 	b.bootService = &boot.BootService{
 		BootJobProvider: bootJobProvider,
-		Logger:          b.Logger,
 	}
 }
-func (b *BasicServer) SetupCronJob(cronJobProvider cron.CronJobProvider) {
+func (b *BasicEngine) SetupCronJob(cronJobProvider cron.CronJobProvider) {
 	b.cronService = &cron.CronService{
 		CronJobProvider: cronJobProvider,
-		Logger:          b.Logger,
 	}
 }
 
-func (b *BasicServer) SetupComponentProvider(componentProvider program.ComponentProvider) {
+func (b *BasicEngine) SetupComponentProvider(componentProvider program.ComponentProvider) {
 	b.componentService = &program.ComponentService{
 		ComponentProvider: componentProvider,
-		Logger:            b.Logger,
 	}
 }
-func (b *BasicServer) SetupInjector(injector boot.Injector) {
+func (b *BasicEngine) SetupInjector(injector boot.Injector) {
 	b.injector = injector
 }
 
-func (b *BasicServer) setup() {
+func (b *BasicEngine) setup() {
 	if b.bootService != nil {
 		b.bootService.InitJobs()
 	}
@@ -63,8 +59,8 @@ func (b *BasicServer) setup() {
 	}
 }
 
-func (b *BasicServer) Start() {
-	b.Logger.Infow("Starting basic server", "name", b.Name)
+func (b *BasicEngine) Start() {
+	log.Info().Str("name", b.Name).Msg("Starting basic server")
 	b.setup()
 
 	if b.bootService != nil {
@@ -82,19 +78,18 @@ func (b *BasicServer) Start() {
 
 	func() {
 		sig := <-gracefulStop
-		b.Logger.Infow("caught sig", "sig", sig)
-		b.Logger.Infow("Exiting... Please do no kill me")
+		log.Info().Str("name", b.Name).Str("sig", sig.String()).Msg("caught sig")
+		log.Info().Str("name", b.Name).Msg("Exiting... Please do no kill me")
 		b.componentService.Stop()
 		os.Exit(0)
 	}()
 }
 
-func NewDefaultBasicServer() BasicServer {
-	return BasicServer{
-		Name:              "LatiServer",
+func NewDefaultEngine() BasicEngine {
+	return BasicEngine{
+		Name:              "LatiEngine",
 		EnvPrefix:         "INJ",
 		DumpConfigOnStart: true,
 		LogLevel:          "INFO",
-		Logger:            zap.S(),
 	}
 }
