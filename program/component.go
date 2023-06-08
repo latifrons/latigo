@@ -14,13 +14,13 @@ type Component interface {
 
 type ComponentProvider interface {
 	ProvideAllComponents() []Component
-	ProvideEnabledComponent() map[string]bool
+	ProvideDisabledComponents() map[string]bool
 }
 
 type ComponentService struct {
-	ComponentProvider ComponentProvider
-	components        []Component
-	componentsEnabled map[string]bool
+	ComponentProvider  ComponentProvider
+	components         []Component
+	componentsDisabled map[string]bool
 }
 
 func (n *ComponentService) InitComponents() {
@@ -29,13 +29,13 @@ func (n *ComponentService) InitComponents() {
 		return
 	}
 	components := n.ComponentProvider.ProvideAllComponents()
-	n.componentsEnabled = n.ComponentProvider.ProvideEnabledComponent()
+	n.componentsDisabled = n.ComponentProvider.ProvideDisabledComponents()
 
 	for _, component := range components {
-		if v, ok := n.componentsEnabled[strings.ToLower(component.Name())]; ok && v {
-			n.components = append(n.components, component)
-		} else {
+		if _, ok := n.componentsDisabled[strings.ToLower(component.Name())]; ok {
 			log.Info().Str("name", component.Name()).Msg("component disabled")
+		} else {
+			n.components = append(n.components, component)
 		}
 	}
 }
