@@ -79,7 +79,7 @@ func (rpc *RpcWrapper) ResponseInternalServerError(c *gin.Context, err error) bo
 	if err == nil {
 		return false
 	}
-	log.Error().Err(err).Stack().Msg("internal server error")
+	log.Error().Stack().Err(err).Msg("internal server error")
 
 	if rpc.Flags.ReturnDetailError {
 		rpc.Response(c, http.StatusInternalServerError, ErrInternal, err.Error(), nil)
@@ -115,7 +115,7 @@ func (rpc *RpcWrapper) ResponseError(c *gin.Context, err error) bool {
 		if err == nil {
 			return false
 		}
-		log.Error().Err(err).Stack().Msg("internal error")
+		log.Error().Stack().Err(err).Msg("internal error")
 		rpc.Response(c, http.StatusInternalServerError, ErrInternal, err.Error(), nil)
 	}
 	return true

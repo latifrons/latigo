@@ -26,7 +26,7 @@ func SetupDefaultLogger(level zerolog.Level) {
 		if true {
 			fmt.Printf("%v\n", e)
 			for _, frame := range e.StackTrace() {
-				fmt.Printf("=%+s:%d\r\n", frame, frame)
+				fmt.Printf("%+s:%d\r\n", frame, frame)
 			}
 		} else {
 			return pkgerrors.MarshalStack(err)

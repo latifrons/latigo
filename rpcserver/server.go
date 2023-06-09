@@ -47,7 +47,7 @@ func (srv *RpcServer) Start() {
 	go func() {
 		// service connections
 		if err := srv.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatal().Err(err).Stack().Msg("error in Http rpcserver")
+			log.Fatal().Stack().Err(err).Msg("error in Http rpcserver")
 		}
 	}()
 }
@@ -56,7 +56,7 @@ func (srv *RpcServer) Stop() {
 	ctx, cancel := context.WithTimeout(context.Background(), ShutdownTimeoutSeconds*time.Second)
 	defer cancel()
 	if err := srv.server.Shutdown(ctx); err != nil {
-		log.Error().Err(err).Stack().Msg("error while shutting down the Http rpcserver")
+		log.Error().Stack().Err(err).Msg("error while shutting down the Http rpcserver")
 	}
 	log.Info().Msg("http rpcserver Stopped")
 }
