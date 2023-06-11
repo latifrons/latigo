@@ -20,29 +20,39 @@ type StackTracer interface {
 type BError struct {
 	Code          string
 	Msg           string
+	CausedBy      error
 	ErrorCategory ErrorCategory
-	StackTrace    errors.StackTrace
-	//InnerError    error
+}
+
+func (b *BError) StackTrace() errors.StackTrace {
+	return b.CausedBy.(StackTracer).StackTrace()
 }
 
 func (b *BError) Error() string {
-	//if b.InnerError != nil {
-	//	return fmt.Sprintf("msg: %s, inner: %s", b.Msg, b.InnerError.Error())
-	//} else {
-	return fmt.Sprintf("code: %s, cat: %d, msg: %s", b.Code, b.ErrorCategory, b.Msg)
-	//}
+	return fmt.Sprintf("code: %s, cat: %d, msg: %s, causedBy: %v", b.Code, b.ErrorCategory, b.Msg, b.CausedBy)
 }
 
-func New(code string, msg string, errorCategory ErrorCategory) *BError {
+func new(code string, msg string, errorCategory ErrorCategory, causedBy error) *BError {
+	if causedBy == nil {
+		causedBy = errors.New(msg)
+	}
 	b := &BError{
 		Code:          code,
 		Msg:           msg,
 		ErrorCategory: errorCategory,
-		StackTrace:    errors.New("").(StackTracer).StackTrace(),
+		CausedBy:      errors.Wrap(causedBy, "caused by"),
 	}
 	return b
 }
 
-func NewFail(code string, msg string) *BError {
-	return New(code, msg, CategoryBusinessFail)
+func NewSystemTemporary(causedBy error, code string, msg string) *BError {
+	return new(code, msg, CategorySystemTemporary, causedBy)
+}
+
+func NewBusinessFail(causedBy error, code string, msg string) *BError {
+	return new(code, msg, CategoryBusinessFail, causedBy)
+}
+
+func NewBusinessTemporary(causedBy error, code string, msg string) *BError {
+	return new(code, msg, CategoryBusinessTemporary, causedBy)
 }

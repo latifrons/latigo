@@ -45,7 +45,7 @@ func (o *OrderParams) ToSqlOrderBy() (c interface{}, err error) {
 	}
 	dir := strings.ToUpper(o.OrderDirection)
 	if dir != OrderDirectionASC && dir != OrderDirectionDESC {
-		err = berror.New(ErrBadRequest, "bad order params", berror.CategoryBusinessFail)
+		err = berror.NewBusinessFail(nil, ErrBadRequest, "bad order params")
 		return
 	}
 	return clause.OrderByColumn{Column: clause.Column{Name: o.OrderBy}, Desc: dir == OrderDirectionDESC}, nil
