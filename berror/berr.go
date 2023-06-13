@@ -46,13 +46,13 @@ func new(code string, msg string, errorCategory ErrorCategory, causedBy error) *
 }
 
 func NewSystemTemporary(causedBy error, code string, msg string) *BError {
-	return new(code, msg, CategorySystemTemporary, causedBy)
+	return new(code, msg, CategorySystemTemporary, causedBy) // can be resolved by retry, caused by system issue
 }
 
 func NewBusinessFail(causedBy error, code string, msg string) *BError {
-	return new(code, msg, CategoryBusinessFail, causedBy)
+	return new(code, msg, CategoryBusinessFail, causedBy) // cannot be resolved by retry
 }
 
 func NewBusinessTemporary(causedBy error, code string, msg string) *BError {
-	return new(code, msg, CategoryBusinessTemporary, causedBy)
+	return new(code, msg, CategoryBusinessTemporary, causedBy) // can be resolved by retry, caused by business issue.
 }
