@@ -11,7 +11,7 @@ import (
 
 func SetupDefaultLogger(level zerolog.Level) {
 	output := zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: "01-02 15:04:05.000"}
-	defaultLogger := zerolog.New(output).Level(zerolog.DebugLevel).With().Timestamp().Logger()
+	defaultLogger := zerolog.New(output).Level(level).With().Timestamp().Logger()
 	log.Logger = defaultLogger
 
 	zerolog.ErrorStackMarshaler = func(err error) interface{} {
