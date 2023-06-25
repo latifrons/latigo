@@ -72,15 +72,14 @@ func (srv *RpcServer) initRouter() *gin.Engine {
 		gin.SetMode(gin.ReleaseMode)
 	}
 	router := gin.New()
-
 	if srv.DebugFlags.GinDebug {
 		logOptions := []logger.Option{
-			logger.WithUTC(true),
+			//logger.WithUTC(true),
 			logger.WithSkipPath([]string{"/health"}),
-			logger.WithDefaultLevel(zerolog.DebugLevel),
-			logger.WithWriter(os.Stdout),
+			//logger.WithDefaultLevel(zerolog.DebugLevel),
+			//logger.WithWriter(os.Stdout),
 			logger.WithLogger(func(c *gin.Context, log zerolog.Logger) zerolog.Logger {
-				output := zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.DateTime}
+				output := zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: "01-02 15:04:05.000"}
 				return zerolog.New(output).Level(zerolog.DebugLevel).With().Timestamp().Logger()
 			}),
 		}
