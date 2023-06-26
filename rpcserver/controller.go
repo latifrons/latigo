@@ -5,6 +5,7 @@ import (
 	"github.com/latifrons/latigo/berror"
 	"github.com/rs/zerolog/log"
 	"net/http"
+	"strconv"
 )
 
 const CodeOK = "OK"
@@ -135,4 +136,17 @@ func (rpc *RpcWrapper) ResponseEmptyField(c *gin.Context, name string, value str
 		return true
 	}
 	return false
+}
+
+func (rpc *RpcWrapper) ParsePagingGet(c *gin.Context) (paging PagingParams, err error) {
+	paging.Limit, err = strconv.Atoi(c.DefaultQuery("limit", "10"))
+	if err != nil {
+		return
+	}
+	paging.Offset, err = strconv.Atoi(c.DefaultQuery("offset", "0"))
+	if err != nil {
+		return
+	}
+	return
+
 }
