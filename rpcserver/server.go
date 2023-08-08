@@ -4,13 +4,10 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/gin-contrib/logger"
 	"github.com/gin-gonic/gin"
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"io"
 	"net/http"
-	"os"
 	"time"
 )
 
@@ -73,25 +70,32 @@ func (srv *RpcServer) initRouter() *gin.Engine {
 	}
 	router := gin.New()
 	if srv.DebugFlags.GinDebug {
-		logOptions := []logger.Option{
-			//logger.WithUTC(true),
-			logger.WithSkipPath([]string{"/health"}),
-			//logger.WithDefaultLevel(zerolog.DebugLevel),
-			//logger.WithWriter(os.Stdout),
-			logger.WithLogger(func(c *gin.Context, log zerolog.Logger) zerolog.Logger {
-				output := zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: "01-02 15:04:05.000"}
-				return zerolog.New(output).Level(zerolog.DebugLevel).With().Timestamp().Logger()
-			}),
+		logger := gin.LoggerWithConfig(gin.LoggerConfig{
+			SkipPaths: []string{"/", "/health",
+				"/apis",
+				"/apis/swagger.json",
+				"/redoc.standalone.js.map",
+				"/574a25b96816f2c682b8.worker.js.map",
+				"/docs/"},
+		})
+		router.Use(logger)
+		if srv.DebugFlags.RequestLog {
+			router.Use(RequestLoggerMiddleware())
 		}
-		router.Use(logger.SetLogger(logOptions...))
+		if srv.DebugFlags.ResponseLog {
+			router.Use(ResponseLoggerMiddleware())
+		}
+	} else {
+		logger := gin.LoggerWithConfig(gin.LoggerConfig{
+			SkipPaths: []string{"/", "/health",
+				"/apis",
+				"/apis/swagger.json",
+				"/redoc.standalone.js.map",
+				"/574a25b96816f2c682b8.worker.js.map",
+				"/docs/"},
+		})
+		router.Use(logger)
 	}
-	if srv.DebugFlags.RequestLog {
-		router.Use(RequestLoggerMiddleware())
-	}
-	if srv.DebugFlags.ResponseLog {
-		router.Use(ResponseLoggerMiddleware())
-	}
-
 	return router
 }
 
@@ -105,7 +109,12 @@ func RequestLoggerMiddleware() gin.HandlerFunc {
 		tee := io.TeeReader(c.Request.Body, &buf)
 		body, _ := io.ReadAll(tee)
 		c.Request.Body = io.NopCloser(&buf)
-		log.Info().Msgf("req body=[%d]\n%s", len(body), string(body))
+
+		l := len(body)
+		log.Info().Msgf("req length=[%d]", l)
+		if l < 4096 {
+			log.Info().Msgf("req body=\n", string(body))
+		}
 		log.Info().Any("header", c.Request.Header).Msg("header")
 		c.Next()
 	}
@@ -126,6 +135,10 @@ func ResponseLoggerMiddleware() gin.HandlerFunc {
 		blw := &bodyLogWriter{body: bytes.NewBufferString(""), ResponseWriter: c.Writer}
 		c.Writer = blw
 		c.Next()
-		log.Info().Msgf("rsp body=[%d]\n%s", len(blw.body.String()), blw.body.String())
+		l := len(blw.body.String())
+		log.Info().Msgf("rsp length=[%d]", l)
+		if l < 4096 {
+			log.Info().Msgf("rsp body=\n", blw.body.String())
+		}
 	}
 }
