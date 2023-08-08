@@ -83,7 +83,7 @@ func (rpc *RpcWrapper) ResponseInternalServerError(c *gin.Context, err error) bo
 	log.Error().Stack().Err(err).Msg("internal server error")
 
 	if rpc.Flags.ReturnDetailError {
-		rpc.Response(c, http.StatusInternalServerError, ErrInternal, err.Error(), nil)
+		rpc.Response(c, http.StatusInternalServerError, ErrInternal, "DEBUG ONLY >>>"+err.Error(), nil)
 	} else {
 		rpc.Response(c, http.StatusInternalServerError, ErrInternal, "Internal server error", nil)
 	}
@@ -113,11 +113,7 @@ func (rpc *RpcWrapper) ResponseError(c *gin.Context, err error) bool {
 			rpc.Response(c, http.StatusOK, berr.Code, msg, nil)
 		}
 	default:
-		if err == nil {
-			return false
-		}
-		log.Error().Stack().Err(err).Msg("internal error")
-		rpc.Response(c, http.StatusInternalServerError, ErrInternal, err.Error(), nil)
+		return rpc.ResponseInternalServerError(c, err)
 	}
 	return true
 }
