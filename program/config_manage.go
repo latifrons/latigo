@@ -30,6 +30,10 @@ func ReadPrivate(privateFolder string) {
 	if files.FileExists(configPath) {
 		MergeLocalConfig(configPath)
 	}
+	configOverridePath := path.Join(privateFolder, "config_override.toml")
+	if files.FileExists(configOverridePath) {
+		MergeLocalConfig(configOverridePath)
+	}
 }
 
 //func writeConfig() {
