@@ -36,9 +36,9 @@ func (s *CronService) InitJobs() {
 
 	for _, job := range jobs {
 		if v, ok := s.jobDisabled[strings.ToLower(job.Name)]; ok && v {
-			s.jobs = append(s.jobs, job)
+			log.Info().Str("name", job.Name).Msg("cron job disabled")
 		} else {
-			log.Info().Str("name", job.Name).Msg("boot job disabled")
+			s.jobs = append(s.jobs, job)
 		}
 	}
 }

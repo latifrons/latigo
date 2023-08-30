@@ -32,7 +32,7 @@ func (s *BootService) InitJobs() {
 	s.jobDisabled = s.BootJobProvider.ProvideDisabledJobs()
 
 	for _, job := range jobs {
-		if _, ok := s.jobDisabled[strings.ToLower(job.Name)]; ok {
+		if v, ok := s.jobDisabled[strings.ToLower(job.Name)]; v && ok {
 			log.Info().Str("name", job.Name).Msg("boot job disabled")
 		} else {
 			s.jobs = append(s.jobs, job)
