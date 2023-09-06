@@ -35,6 +35,8 @@ func (s *BootService) InitJobs() {
 		if v, ok := s.jobDisabled[strings.ToLower(job.Name)]; v && ok {
 			log.Info().Str("name", job.Name).Msg("boot job disabled")
 		} else {
+			log.Info().Str("name", job.Name).Msg("boot job enabled")
+
 			s.jobs = append(s.jobs, job)
 		}
 	}
@@ -43,7 +45,7 @@ func (s *BootService) InitJobs() {
 func (s *BootService) Boot() {
 	var err error
 	for _, job := range s.jobs {
-		log.Info().Str("name", job.Name).Msg("starting boot job")
+		log.Info().Str("name", job.Name).Msg("executing boot job")
 		err = job.Function()
 		if err != nil {
 			if job.FaultTolerant {
@@ -51,6 +53,8 @@ func (s *BootService) Boot() {
 			} else {
 				log.Fatal().Err(err).Str("name", job.Name).Msg("failed to execute boot job")
 			}
+		} else {
+			log.Info().Str("name", job.Name).Msg("boot job executed")
 		}
 	}
 	return

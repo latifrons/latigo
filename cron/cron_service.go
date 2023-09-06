@@ -38,6 +38,7 @@ func (s *CronService) InitJobs() {
 		if v, ok := s.jobDisabled[strings.ToLower(job.Name)]; ok && v {
 			log.Info().Str("name", job.Name).Msg("cron job disabled")
 		} else {
+			log.Info().Str("name", job.Name).Msg("cron job enabled")
 			s.jobs = append(s.jobs, job)
 		}
 	}
@@ -50,6 +51,8 @@ func (c *CronService) Start() {
 		_, err := c.cr.Every(job.Interval).Do(job.Function, job.Params...)
 		if err != nil {
 			log.Fatal().Err(err).Str("name", job.Name).Msg("failed to start cron job")
+		} else {
+			log.Info().Str("name", job.Name).Msg("cron job started")
 		}
 	}
 	c.cr.StartAsync()
