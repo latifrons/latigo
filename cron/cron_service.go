@@ -7,6 +7,12 @@ import (
 	"time"
 )
 
+type DistributedTask struct {
+	CheckInterval  time.Duration
+	ActionInterval time.Duration
+	LockKey        string
+}
+
 type CronJob struct {
 	Name     string
 	Interval time.Duration
