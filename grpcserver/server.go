@@ -53,11 +53,13 @@ func (srv *GrpcServer) Start() {
 		events := []logging.LoggableEvent{}
 		if srv.DebugFlags.RequestLog {
 			events = append(events, logging.PayloadReceived)
+			events = append(events, logging.StartCall)
 		} else {
 			events = append(events, logging.StartCall)
 		}
 		if srv.DebugFlags.ResponseLog {
 			events = append(events, logging.PayloadSent)
+			events = append(events, logging.FinishCall)
 		} else {
 			events = append(events, logging.FinishCall)
 		}

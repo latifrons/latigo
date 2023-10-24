@@ -4,8 +4,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/latifrons/latigo/berror"
 	"github.com/rs/zerolog/log"
+	"google.golang.org/grpc/status"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 const CodeOK = "OK"
@@ -91,6 +93,25 @@ func (rpc *RpcWrapper) ResponseInternalServerError(c *gin.Context, err error) bo
 }
 
 func (rpc *RpcWrapper) ResponseError(c *gin.Context, err error) bool {
+	if err == nil {
+		return false
+	}
+	// grpc error check
+	grpcError, ok := status.FromError(err)
+	if ok {
+		s := grpcError.Message()
+		ss := strings.SplitN(s, ":", 2)
+		switch len(ss) {
+		case 2:
+			rpc.Response(c, http.StatusOK, ss[0], "DEBUG ONLY >>>"+ss[1], nil)
+		case 1:
+			rpc.Response(c, http.StatusOK, ss[0], "DEBUG ONLY >>>"+s, nil)
+		case 0:
+			rpc.Response(c, http.StatusOK, grpcError.Code().String(), "DEBUG ONLY >>>"+grpcError.Message(), nil)
+		}
+		return true
+	}
+
 	switch err.(type) {
 	case *berror.BError:
 		berr := err.(*berror.BError)

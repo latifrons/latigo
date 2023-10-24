@@ -7,11 +7,12 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func Gerror(c codes.Code, berror, format string, a ...any) error {
-	return status.Errorf(c, berror+": "+format, a...)
+func Gerror(from string, c codes.Code, berror, format string, a ...any) error {
+	from = "[" + from + "]"
+	return status.Errorf(c, berror+":"+from+":"+format, a...)
 }
 
-func WrapGError(err error) error {
+func WrapGError(from string, err error) error {
 	if err == nil {
 		return nil
 	}
@@ -23,8 +24,8 @@ func WrapGError(err error) error {
 		if berr == nil {
 			return nil
 		}
-		return Gerror(codes.Internal, berr.Code, berr.Msg)
+		return Gerror(from, codes.Internal, berr.Code, berr.Msg)
 	default:
-		return Gerror(codes.Internal, berror.ErrInternal, err.Error())
+		return Gerror(from, codes.Internal, berror.ErrInternal, err.Error())
 	}
 }
