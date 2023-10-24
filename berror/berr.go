@@ -13,6 +13,11 @@ const (
 	CategorySystemTemporary                 = 3
 )
 
+const (
+	ErrInternal = "ErrInternal"
+	ErrBusiness = "ErrBusiness"
+)
+
 type StackTracer interface {
 	StackTrace() errors.StackTrace
 }

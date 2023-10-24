@@ -25,6 +25,6 @@ func WrapGError(err error) error {
 		}
 		return Gerror(codes.Internal, berr.Code, berr.Msg)
 	default:
-		return Gerror(codes.Internal, "Internal", err.Error())
+		return Gerror(codes.Internal, berror.ErrInternal, err.Error())
 	}
 }
