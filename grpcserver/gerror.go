@@ -16,6 +16,11 @@ func WrapGError(from string, err error) error {
 	if err == nil {
 		return nil
 	}
+
+	if _, ok := status.FromError(err); ok {
+		return err
+	}
+
 	var BError *berror.BError
 	switch {
 	case errors.As(err, &BError):
@@ -24,7 +29,7 @@ func WrapGError(from string, err error) error {
 		if berr == nil {
 			return nil
 		}
-		return Gerror(from, codes.Internal, berr.Code, berr.Msg)
+		return Gerror(from, codes.FailedPrecondition, berr.Code, berr.Msg)
 	default:
 		return Gerror(from, codes.Internal, berror.ErrInternal, err.Error())
 	}

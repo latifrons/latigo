@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/latifrons/latigo/berror"
 	"github.com/rs/zerolog/log"
+	codes "google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"net/http"
 	"strconv"
@@ -99,6 +100,10 @@ func (rpc *RpcWrapper) ResponseError(c *gin.Context, err error) bool {
 	// grpc error check
 	grpcError, ok := status.FromError(err)
 	if ok {
+		if grpcError.Code() == codes.Unavailable {
+			rpc.Response(c, http.StatusServiceUnavailable, ErrInternal, "DEBUG ONLY >>>"+grpcError.Message(), nil)
+			return true
+		}
 		s := grpcError.Message()
 		ss := strings.SplitN(s, ":", 2)
 		switch len(ss) {
