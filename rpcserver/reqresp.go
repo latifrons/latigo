@@ -1,9 +1,10 @@
 package rpcserver
 
 type GeneralResponse struct {
-	Code string      `json:"code" example:"OK"` // Code is OK for normal cases and ErrXXXX for errors.
-	Msg  string      `json:"msg"`               // Msg is "" for normal cases and message for errors.
-	Data interface{} `json:"data,omitempty"`    // Optional
+	Code     string      `json:"code" example:"OK"`      // Code is OK for normal cases and ErrXXXX for errors.
+	Msg      string      `json:"msg"`                    // Msg is "" for normal cases and message for errors.
+	DebugMsg string      `json:"XXXdebug_msg,omitempty"` // XXXDebugMsg is "" for normal cases and debug message for errors.
+	Data     interface{} `json:"data,omitempty"`         // Optional
 }
 
 type PagingOrderRequest struct {

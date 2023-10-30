@@ -35,6 +35,12 @@ func NewGError(module string, berrorCode, userMessage, debugMessage, stackTrace 
 	return
 }
 
+func NewGRpcError(module string, code codes.Code, berrorCode string, debugMessage string) (errOut error) {
+	gerror := NewGError(module, berrorCode, "", debugMessage, "", nil, Category_System)
+	return status.New(code, gerror.Error()).Err()
+
+}
+
 // convert to grpc error
 func WrapGRpcError(module string, code codes.Code, err error) (errOut error) {
 	if err == nil {
@@ -47,6 +53,7 @@ func WrapGRpcError(module string, code codes.Code, err error) (errOut error) {
 	}
 
 	var gerror *GError
+	var berrorx *berror.BError
 
 	switch {
 	case errors.As(err, &gerror):
@@ -56,39 +63,16 @@ func WrapGRpcError(module string, code codes.Code, err error) (errOut error) {
 			return nil
 		}
 		return status.New(code, gerror.Error()).Err()
+	case errors.As(err, &berrorx):
+		return NewGRpcError(module, code, berrorx.Code, berrorx.Msg)
 	default:
-		gerror = NewGError(module, berror.ErrInternal, berror.ErrInternal, err.Error(), "", nil, Category_System)
-		return status.New(code, gerror.Error()).Err()
+		return NewGRpcError(module, code, berror.ErrInternal, err.Error())
 	}
 
 }
 
-func Gerror(from string, c codes.Code, berror, format string, a ...any) error {
-	from = "[" + from + "]"
-	return status.Errorf(c, berror+":"+from+":"+format, a...)
-}
-
-func WrapGError(from string, err error) error {
-	if err == nil {
-		return nil
-	}
-
-	if _, ok := status.FromError(err); ok {
-		return err
-	}
-
-	var BError *berror.BError
-	switch {
-	case errors.As(err, &BError):
-		var berr *berror.BError
-		errors.As(err, &berr)
-		if berr == nil {
-			return nil
-		}
-		return Gerror(from, codes.FailedPrecondition, berr.Code, berr.Msg)
-	default:
-		return Gerror(from, codes.Internal, berror.ErrInternal, err.Error())
-	}
+func WrapGRpcErrorLogic(from string, err error) error {
+	return WrapGRpcError(from, codes.FailedPrecondition, err)
 }
 
 // FromError try to convert go error to *Error.
@@ -96,14 +80,14 @@ func FromError(err error) (gerr *GError, ok bool) {
 	if err == nil {
 		return nil, true
 	}
-	if verr, ok := status.FromError(err); ok && verr != nil {
-		return Parse(verr.Message())
-	}
-
 	var verr *GError
 	if errors.As(err, &verr) && verr != nil {
 		return verr, true
 	}
+
+	//if verr, ok := status.FromError(err); ok && verr != nil {
+	//	return Parse(verr.Message())
+	//}
 
 	// other unknown error
 	return nil, false

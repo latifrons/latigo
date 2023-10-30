@@ -5,9 +5,9 @@ option go_package = ".;grpcserver";
 package errorr;
 
 enum Category {
-  Retriable = 0;  // 可以通过重试解决的临时错误（如CAS）
-  Business = 1; // 业务错误，不可以通过重试解决
-  System = 2; // 系统错误，不可以通过重试解决
+  Business = 0; // 业务错误，不可以通过重试解决
+  System = 1; // 系统错误，不可以通过重试解决
+  Retriable = 2;  // 可以通过重试解决的临时错误（如CAS）
 };
 
 message GError {

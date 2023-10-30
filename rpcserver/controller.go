@@ -2,13 +2,12 @@ package rpcserver
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/latifrons/latigo/berror"
+	"github.com/latifrons/latigo/grpcserver"
 	"github.com/rs/zerolog/log"
 	codes "google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"net/http"
 	"strconv"
-	"strings"
 )
 
 const CodeOK = "OK"
@@ -19,6 +18,15 @@ type RpcWrapperFlags struct {
 
 type RpcWrapper struct {
 	Flags RpcWrapperFlags
+}
+
+func (rpc *RpcWrapper) ResponseDebug(c *gin.Context, status int, code string, msg string, debugMessage string, data interface{}) {
+	c.JSON(status, GeneralResponse{
+		Code:     code,
+		Msg:      msg,
+		DebugMsg: debugMessage,
+		Data:     data,
+	})
 }
 
 func (rpc *RpcWrapper) Response(c *gin.Context, status int, code string, msg string, data interface{}) {
@@ -70,11 +78,11 @@ func (rpc *RpcWrapper) ResponseBadRequest(c *gin.Context, err error, userMessage
 		return false
 	}
 	if userMessage != "" {
-		rpc.Response(c, http.StatusBadRequest, ErrBadRequest, userMessage, nil)
+		rpc.ResponseDebug(c, http.StatusBadRequest, ErrBadRequest, userMessage, err.Error(), nil)
 	} else if rpc.Flags.ReturnDetailError {
-		rpc.Response(c, http.StatusBadRequest, ErrBadRequest, err.Error(), nil)
+		rpc.ResponseDebug(c, http.StatusBadRequest, ErrBadRequest, err.Error(), err.Error(), nil)
 	} else {
-		rpc.Response(c, http.StatusBadRequest, ErrBadRequest, "Bad request. Check your input.", nil)
+		rpc.ResponseDebug(c, http.StatusBadRequest, ErrBadRequest, "Bad request. Check your input.", err.Error(), nil)
 	}
 	return true
 }
@@ -86,9 +94,9 @@ func (rpc *RpcWrapper) ResponseInternalServerError(c *gin.Context, err error) bo
 	log.Error().Stack().Err(err).Msg("internal server error")
 
 	if rpc.Flags.ReturnDetailError {
-		rpc.Response(c, http.StatusInternalServerError, ErrInternal, "DEBUG ONLY >>>"+err.Error(), nil)
+		rpc.ResponseDebug(c, http.StatusInternalServerError, ErrInternal, err.Error(), err.Error(), nil)
 	} else {
-		rpc.Response(c, http.StatusInternalServerError, ErrInternal, "Internal server error", nil)
+		rpc.ResponseDebug(c, http.StatusInternalServerError, ErrInternal, "Internal server error", err.Error(), nil)
 	}
 	return true
 }
@@ -101,52 +109,33 @@ func (rpc *RpcWrapper) ResponseError(c *gin.Context, err error) bool {
 	grpcError, ok := status.FromError(err)
 	if ok {
 		if grpcError.Code() == codes.Unavailable {
-			rpc.Response(c, http.StatusServiceUnavailable, ErrInternal, "DEBUG ONLY >>>"+grpcError.Message(), nil)
+			rpc.ResponseDebug(c, http.StatusServiceUnavailable, ErrInternal, "service unreachable", grpcError.Message(), nil)
 			return true
 		}
-		s := grpcError.Message()
-		ss := strings.SplitN(s, ":", 2)
-		switch len(ss) {
-		case 2:
-			rpc.Response(c, http.StatusOK, ss[0], "DEBUG ONLY >>>"+ss[1], nil)
-		case 1:
-			rpc.Response(c, http.StatusOK, ss[0], "DEBUG ONLY >>>"+s, nil)
-		case 0:
-			rpc.Response(c, http.StatusOK, grpcError.Code().String(), "DEBUG ONLY >>>"+grpcError.Message(), nil)
+
+		gerr, ok := grpcserver.Parse(grpcError.Message())
+		if ok {
+			rpc.ResponseDebug(c, http.StatusOK, gerr.Code, gerr.UserMessage, gerr.DebugMessage, nil)
+		} else {
+			rpc.ResponseDebug(c, http.StatusServiceUnavailable, ErrInternal, "internal error", grpcError.Message(), nil)
 		}
+
 		return true
+	} else {
+		gerr, ok := grpcserver.FromError(err)
+		if ok {
+			rpc.ResponseDebug(c, http.StatusOK, gerr.Code, gerr.UserMessage, gerr.DebugMessage, nil)
+		} else {
+			rpc.ResponseDebug(c, http.StatusServiceUnavailable, ErrInternal, "internal error", grpcError.Message(), nil)
+		}
 	}
 
-	switch err.(type) {
-	case *berror.BError:
-		berr := err.(*berror.BError)
-		if berr == nil {
-			return false
-		}
-
-		var msg = "fail"
-		if rpc.Flags.ReturnDetailError {
-			msg = "DEBUG ONLY >>>" + berr.Msg
-		}
-
-		// response http code according to DTM
-		switch berr.ErrorCategory {
-		case berror.CategoryBusinessFail:
-			rpc.Response(c, http.StatusOK, berr.Code, msg, nil)
-		case berror.CategoryBusinessTemporary:
-			rpc.Response(c, http.StatusOK, berr.Code, msg, nil)
-		case berror.CategorySystemTemporary:
-			rpc.Response(c, http.StatusOK, berr.Code, msg, nil)
-		}
-	default:
-		return rpc.ResponseInternalServerError(c, err)
-	}
 	return true
 }
 
 func (rpc *RpcWrapper) ResponseEmptyParam(c *gin.Context, name string, value string) bool {
 	if value == "" {
-		rpc.Response(c, http.StatusBadRequest, ErrBadRequest, "param missing: "+name, nil)
+		rpc.ResponseDebug(c, http.StatusBadRequest, ErrBadRequest, "param missing", "param missing: "+name, nil)
 		return true
 	}
 	return false
@@ -154,7 +143,7 @@ func (rpc *RpcWrapper) ResponseEmptyParam(c *gin.Context, name string, value str
 
 func (rpc *RpcWrapper) ResponseEmptyField(c *gin.Context, name string, value string) bool {
 	if value == "" {
-		rpc.Response(c, http.StatusBadRequest, ErrBadRequest, "body field missing: "+name, nil)
+		rpc.ResponseDebug(c, http.StatusBadRequest, ErrBadRequest, "body field missing", "body field missing: "+name, nil)
 		return true
 	}
 	return false
