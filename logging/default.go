@@ -9,10 +9,11 @@ import (
 	"os"
 )
 
-func SetupDefaultLogger(level zerolog.Level) {
-	output := zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: "01-02 15:04:05.000"}
+func SetupDefaultLoggerWithColor(level zerolog.Level, noColor bool) {
+	output := zerolog.ConsoleWriter{Out: os.Stdout, NoColor: noColor, TimeFormat: "01-02 15:04:05.000"}
 	defaultLogger := zerolog.New(output).Level(level).With().Timestamp().Logger()
 	log.Logger = defaultLogger
+	zerolog.TimeFieldFormat = "01-02 15:04:05.000"
 
 	zerolog.ErrorStackMarshaler = func(err error) interface{} {
 		type stackTracer interface {
@@ -33,4 +34,8 @@ func SetupDefaultLogger(level zerolog.Level) {
 		}
 		return nil
 	}
+}
+
+func SetupDefaultLogger(level zerolog.Level) {
+	SetupDefaultLoggerWithColor(level, true)
 }
