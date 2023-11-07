@@ -64,7 +64,11 @@ func WrapGRpcError(module string, code codes.Code, err error) (errOut error) {
 		}
 		return status.New(code, gerror.Error()).Err()
 	case errors.As(err, &berrorx):
-		return NewGRpcError(module, code, berrorx.Code, berrorx.Msg)
+		e := berrorx.Msg
+		if berrorx.CausedBy != nil {
+			e += " caused by: " + berrorx.CausedBy.Error()
+		}
+		return NewGRpcError(module, code, berrorx.Code, e)
 	default:
 		return NewGRpcError(module, code, berror.ErrInternal, err.Error())
 	}

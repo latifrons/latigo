@@ -38,9 +38,6 @@ func (b *BError) Error() string {
 }
 
 func new(code string, msg string, errorCategory ErrorCategory, causedBy error) *BError {
-	if causedBy == nil {
-		causedBy = errors.New(msg)
-	}
 	b := &BError{
 		Code:          code,
 		Msg:           msg,
