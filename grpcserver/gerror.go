@@ -79,6 +79,10 @@ func WrapGRpcErrorLogic(from string, err error) error {
 	return WrapGRpcError(from, codes.FailedPrecondition, err)
 }
 
+func WrapGRpcErrorBadRequest(from string, err error) error {
+	return WrapGRpcError(from, codes.InvalidArgument, berror.NewBusinessFail(err, berror.ErrBadRequest, err.Error()))
+}
+
 // FromError try to convert go error to *Error.
 func FromError(err error) (gerr *GError, ok bool) {
 	if err == nil {

@@ -14,8 +14,9 @@ const (
 )
 
 const (
-	ErrInternal = "ErrInternal"
-	ErrBusiness = "ErrBusiness"
+	ErrInternal   = "ErrInternal"
+	ErrBusiness   = "ErrBusiness"
+	ErrBadRequest = "ErrBadRequest"
 )
 
 type StackTracer interface {
