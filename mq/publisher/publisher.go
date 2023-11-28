@@ -88,7 +88,7 @@ func (c *ReliableRabbitPublisher) Publish(ctx context.Context, exchange, key str
 	})
 }
 
-func (c *ReliableRabbitPublisher) Reset() {
+func (c *ReliableRabbitPublisher) Reset() (err error) {
 	// must delete all
 	log.Info().Msg("reliable rabiit publisher reset")
 	if c.cleanFunc != nil {
@@ -96,11 +96,19 @@ func (c *ReliableRabbitPublisher) Reset() {
 		if err != nil {
 			log.Error().Err(err).Msg("failed to clean")
 		}
+		return err
 	}
 	if c.initFunc != nil {
 		err := c.initFunc(c.channel)
 		if err != nil {
 			log.Error().Err(err).Msg("failed to init")
 		}
+		return err
 	}
+	return
+}
+
+func (c *ReliableRabbitPublisher) Stop() {
+	c.publisher.Close()
+	c.dailer.Close()
 }

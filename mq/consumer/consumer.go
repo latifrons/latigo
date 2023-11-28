@@ -114,6 +114,15 @@ func (c *ReliableRabbitConsumer) Reset() {
 	}
 }
 
-func (c *ReliableRabbitConsumer) Stop() (err error) {
-	return c.channel.Close()
+func (c *ReliableRabbitConsumer) Stop() {
+	c.consumer.Close()
+	c.dailer.Close()
+}
+
+func (c *ReliableRabbitConsumer) Ack(deliveryTag uint64, multiple bool) error {
+	return c.channel.Ack(deliveryTag, multiple)
+}
+
+func (c *ReliableRabbitConsumer) Nack(deliveryTag uint64, multiple bool) error {
+	return c.channel.Nack(deliveryTag, multiple, true)
 }
