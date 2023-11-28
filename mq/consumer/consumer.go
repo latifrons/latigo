@@ -12,6 +12,15 @@ import (
 
 type ConsumerOption func(*ReliableRabbitConsumer)
 
+type ReliableRabbitConsumerArgs struct {
+	Consumer  string
+	AutoAck   bool
+	Exclusive bool
+	NoLocal   bool
+	NoWait    bool
+	Args      amqp091.Table
+}
+
 type ReliableRabbitConsumer struct {
 	URL          string
 	ExchangeName string
@@ -23,10 +32,11 @@ type ReliableRabbitConsumer struct {
 	cleanFunc  func(channel *amqp091.Channel) error
 	logger     logger.Logger
 
-	dailer     *amqpextra.Dialer
-	connection *amqp091.Connection
-	channel    *amqp091.Channel
-	consumer   *consumer.Consumer
+	dailer       *amqpextra.Dialer
+	connection   *amqp091.Connection
+	channel      *amqp091.Channel
+	consumer     *consumer.Consumer
+	consumerArgs ReliableRabbitConsumerArgs
 }
 
 func NewReliableRabbitConsumer(url string, exchageName string, queueName string, routingKey string, handleFunc func(ctx context.Context, msg amqp091.Delivery) interface{}, opts ...ConsumerOption) *ReliableRabbitConsumer {
@@ -61,6 +71,12 @@ func WithLogger(l logger.Logger) ConsumerOption {
 	}
 }
 
+func WithConsumerArgs(consumerArgs ReliableRabbitConsumerArgs) ConsumerOption {
+	return func(c *ReliableRabbitConsumer) {
+		c.consumerArgs = consumerArgs
+	}
+}
+
 func (c *ReliableRabbitConsumer) Start() (err error) {
 	c.dailer, err = amqpextra.NewDialer(amqpextra.WithURL(c.URL))
 	if err != nil {
@@ -92,7 +108,13 @@ func (c *ReliableRabbitConsumer) Start() (err error) {
 		consumer.WithExchange(c.ExchangeName, c.RoutingKey),
 		consumer.WithQueue(c.QueueName),
 		consumer.WithLogger(c.logger),
-		consumer.WithHandler(h))
+		consumer.WithHandler(h),
+		consumer.WithConsumeArgs(c.consumerArgs.Consumer,
+			c.consumerArgs.AutoAck,
+			c.consumerArgs.Exclusive,
+			c.consumerArgs.NoLocal,
+			c.consumerArgs.NoWait,
+			c.consumerArgs.Args))
 
 	return
 }
