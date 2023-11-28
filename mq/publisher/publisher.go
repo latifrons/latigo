@@ -18,10 +18,8 @@ type ReliableRabbitPublisher struct {
 	cleanFunc func(channel *amqp091.Channel) error
 	logger    logger.Logger
 
-	dailer     *amqpextra.Dialer
-	connection *amqp091.Connection
-	channel    *amqp091.Channel
-	publisher  *publisher.Publisher
+	dailer    *amqpextra.Dialer
+	publisher *publisher.Publisher
 }
 
 func NewReliableRabbitPublisher(url string, opts ...PublisherOption) *ReliableRabbitPublisher {
@@ -54,18 +52,24 @@ func (c *ReliableRabbitPublisher) Start() (err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	c.connection, err = c.dailer.Connection(ctx)
+	connection, err := c.dailer.Connection(ctx)
 	if err != nil {
 		return
 	}
 
-	c.channel, err = c.connection.Channel()
+	channel, err := connection.Channel()
 	if err != nil {
 		return
 	}
+	defer func(channel *amqp091.Channel) {
+		err := channel.Close()
+		if err != nil {
+			log.Error().Err(err).Msg("failed to close channel")
+		}
+	}(channel)
 
 	if c.initFunc != nil {
-		err = c.initFunc(c.channel)
+		err = c.initFunc(channel)
 		if err != nil {
 			return
 		}
@@ -91,20 +95,37 @@ func (c *ReliableRabbitPublisher) Publish(ctx context.Context, exchange, key str
 func (c *ReliableRabbitPublisher) Reset() (err error) {
 	// must delete all
 	log.Info().Msg("reliable rabiit publisher reset")
+	ctx, cancelFunc := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancelFunc()
+
+	conn, err := c.dailer.Connection(ctx)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to reset")
+	}
+	channel, err := conn.Channel()
+	if err != nil {
+		log.Error().Err(err).Msg("failed to reset")
+	}
+	defer func(channel *amqp091.Channel) {
+		err := channel.Close()
+		if err != nil {
+			log.Error().Err(err).Msg("failed to close channel")
+		}
+	}(channel)
+
 	if c.cleanFunc != nil {
-		err := c.cleanFunc(c.channel)
+		err = c.cleanFunc(channel)
 		if err != nil {
 			log.Error().Err(err).Msg("failed to clean")
 		}
-		return err
 	}
 	if c.initFunc != nil {
-		err := c.initFunc(c.channel)
+		err := c.initFunc(channel)
 		if err != nil {
 			log.Error().Err(err).Msg("failed to init")
 		}
-		return err
 	}
+
 	return
 }
 

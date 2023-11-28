@@ -33,8 +33,6 @@ type ReliableRabbitConsumer struct {
 	logger     logger.Logger
 
 	dailer       *amqpextra.Dialer
-	connection   *amqp091.Connection
-	channel      *amqp091.Channel
 	consumer     *consumer.Consumer
 	consumerArgs ReliableRabbitConsumerArgs
 }
@@ -85,18 +83,24 @@ func (c *ReliableRabbitConsumer) Start() (err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	c.connection, err = c.dailer.Connection(ctx)
+	connection, err := c.dailer.Connection(ctx)
 	if err != nil {
 		return
 	}
 
-	c.channel, err = c.connection.Channel()
+	channel, err := connection.Channel()
 	if err != nil {
 		return
 	}
+	defer func(channel *amqp091.Channel) {
+		err := channel.Close()
+		if err != nil {
+			log.Error().Err(err).Msg("failed to close channel")
+		}
+	}(channel)
 
 	if c.initFunc != nil {
-		err = c.initFunc(c.channel)
+		err = c.initFunc(channel)
 		if err != nil {
 			return
 		}
@@ -122,14 +126,32 @@ func (c *ReliableRabbitConsumer) Start() (err error) {
 func (c *ReliableRabbitConsumer) Reset() {
 	// must delete all
 	log.Info().Msg("reliable rabbit consumer reset")
+	ctx, cancelFunc := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancelFunc()
+
+	conn, err := c.dailer.Connection(ctx)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to reset")
+	}
+	channel, err := conn.Channel()
+	if err != nil {
+		log.Error().Err(err).Msg("failed to reset")
+	}
+	defer func(channel *amqp091.Channel) {
+		err := channel.Close()
+		if err != nil {
+			log.Error().Err(err).Msg("failed to close channel")
+		}
+	}(channel)
+
 	if c.cleanFunc != nil {
-		err := c.cleanFunc(c.channel)
+		err = c.cleanFunc(channel)
 		if err != nil {
 			log.Error().Err(err).Msg("failed to clean")
 		}
 	}
 	if c.initFunc != nil {
-		err := c.initFunc(c.channel)
+		err := c.initFunc(channel)
 		if err != nil {
 			log.Error().Err(err).Msg("failed to init")
 		}
@@ -139,12 +161,4 @@ func (c *ReliableRabbitConsumer) Reset() {
 func (c *ReliableRabbitConsumer) Stop() {
 	c.consumer.Close()
 	c.dailer.Close()
-}
-
-func (c *ReliableRabbitConsumer) Ack(deliveryTag uint64, multiple bool) error {
-	return c.channel.Ack(deliveryTag, multiple)
-}
-
-func (c *ReliableRabbitConsumer) Nack(deliveryTag uint64, multiple bool) error {
-	return c.channel.Nack(deliveryTag, multiple, true)
 }
