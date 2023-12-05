@@ -32,18 +32,22 @@ type ReliableRabbitConsumer struct {
 	cleanFunc  func(channel *amqp091.Channel) error
 	logger     logger.Logger
 
-	dailer       *amqpextra.Dialer
-	consumer     *consumer.Consumer
-	consumerArgs ReliableRabbitConsumerArgs
+	dailer        *amqpextra.Dialer
+	consumer      *consumer.Consumer
+	consumerArgs  ReliableRabbitConsumerArgs
+	prefetchCount int
+	global        bool
 }
 
 func NewReliableRabbitConsumer(url string, exchageName string, queueName string, routingKey string, handleFunc func(ctx context.Context, msg amqp091.Delivery) interface{}, opts ...ConsumerOption) *ReliableRabbitConsumer {
 	c := &ReliableRabbitConsumer{
-		URL:          url,
-		ExchangeName: exchageName,
-		QueueName:    queueName,
-		RoutingKey:   routingKey,
-		HandleFunc:   handleFunc,
+		URL:           url,
+		ExchangeName:  exchageName,
+		QueueName:     queueName,
+		RoutingKey:    routingKey,
+		HandleFunc:    handleFunc,
+		prefetchCount: 1,
+		global:        false,
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -72,6 +76,13 @@ func WithLogger(l logger.Logger) ConsumerOption {
 func WithConsumerArgs(consumerArgs ReliableRabbitConsumerArgs) ConsumerOption {
 	return func(c *ReliableRabbitConsumer) {
 		c.consumerArgs = consumerArgs
+	}
+}
+
+func WithQos(prefetchCount int, global bool) ConsumerOption {
+	return func(c *ReliableRabbitConsumer) {
+		c.prefetchCount = prefetchCount
+		c.global = global
 	}
 }
 
@@ -113,6 +124,7 @@ func (c *ReliableRabbitConsumer) Start() (err error) {
 		consumer.WithQueue(c.QueueName),
 		consumer.WithLogger(c.logger),
 		consumer.WithHandler(h),
+		consumer.WithQos(c.prefetchCount, c.global),
 		consumer.WithConsumeArgs(c.consumerArgs.Consumer,
 			c.consumerArgs.AutoAck,
 			c.consumerArgs.Exclusive,
