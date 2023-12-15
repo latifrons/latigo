@@ -13,8 +13,13 @@ type DistributedTask struct {
 	LockKey        string
 }
 
+const CronJobTypeCron = "cron"
+const CronJobTypeInterval = "interval"
+
 type CronJob struct {
 	Name     string
+	Type     string
+	Cron     string
 	Interval time.Duration
 	Function interface{}
 	Params   []interface{}
@@ -54,11 +59,21 @@ func (c *CronService) Start() {
 	c.cr = gocron.NewScheduler(time.UTC)
 
 	for _, job := range c.jobs {
-		_, err := c.cr.Every(job.Interval).Do(job.Function, job.Params...)
-		if err != nil {
-			log.Fatal().Err(err).Str("name", job.Name).Msg("failed to start cron job")
+		if job.Type == CronJobTypeCron {
+			_, err := c.cr.CronWithSeconds(job.Cron).Do(job.Function, job.Params...)
+			if err != nil {
+				log.Fatal().Err(err).Str("name", job.Name).Msg("failed to start cron job")
+			} else {
+				log.Info().Str("name", job.Name).Msg("cron job started")
+			}
+			continue
 		} else {
-			log.Info().Str("name", job.Name).Msg("cron job started")
+			_, err := c.cr.Every(job.Interval).Do(job.Function, job.Params...)
+			if err != nil {
+				log.Fatal().Err(err).Str("name", job.Name).Msg("failed to start cron job")
+			} else {
+				log.Info().Str("name", job.Name).Msg("cron job started")
+			}
 		}
 	}
 	c.cr.StartAsync()
