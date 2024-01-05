@@ -62,11 +62,6 @@ func (c *CronService) Start() {
 	for _, job := range c.jobs {
 		if job.Type == CronJobTypeCron {
 			scheduler := c.cr.CronWithSeconds(job.Cron)
-			if job.WaitForSchedule {
-				scheduler = scheduler.WaitForSchedule()
-			} else {
-				scheduler = scheduler.StartImmediately()
-			}
 			_, err := scheduler.Do(job.Function, job.Params...)
 			if err != nil {
 				log.Fatal().Err(err).Str("name", job.Name).Msg("failed to start cron job")
