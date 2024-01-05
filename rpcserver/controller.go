@@ -115,7 +115,7 @@ func (rpc *RpcWrapper) ResponseError(c *gin.Context, err error) bool {
 
 		gerr, ok := grpcserver.Parse(grpcError.Message())
 		if ok {
-			rpc.ResponseDebug(c, http.StatusOK, gerr.Code, gerr.UserMessage, gerr.DebugMessage, nil)
+			rpc.ResponseDebug(c, http.StatusOK, gerr.Code, gerr.UserMessage, gerr.ModuleName+":"+gerr.DebugMessage, nil)
 		} else {
 			rpc.ResponseDebug(c, http.StatusServiceUnavailable, ErrInternal, "internal error", grpcError.Message(), nil)
 		}

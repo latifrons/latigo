@@ -17,12 +17,13 @@ const CronJobTypeCron = "cron"
 const CronJobTypeInterval = "interval"
 
 type CronJob struct {
-	Name     string
-	Type     string
-	Cron     string
-	Interval time.Duration
-	Function interface{}
-	Params   []interface{}
+	Name            string
+	Type            string
+	Cron            string
+	WaitForSchedule bool
+	Interval        time.Duration
+	Function        interface{}
+	Params          []interface{}
 }
 
 type CronJobProvider interface {
@@ -60,7 +61,13 @@ func (c *CronService) Start() {
 
 	for _, job := range c.jobs {
 		if job.Type == CronJobTypeCron {
-			_, err := c.cr.CronWithSeconds(job.Cron).Do(job.Function, job.Params...)
+			scheduler := c.cr.CronWithSeconds(job.Cron)
+			if job.WaitForSchedule {
+				scheduler = scheduler.WaitForSchedule()
+			} else {
+				scheduler = scheduler.StartImmediately()
+			}
+			_, err := scheduler.Do(job.Function, job.Params...)
 			if err != nil {
 				log.Fatal().Err(err).Str("name", job.Name).Msg("failed to start cron job")
 			} else {
@@ -68,7 +75,15 @@ func (c *CronService) Start() {
 			}
 			continue
 		} else {
-			_, err := c.cr.Every(job.Interval).Do(job.Function, job.Params...)
+			scheduler := c.cr.Every(job.Interval)
+
+			if job.WaitForSchedule {
+				scheduler = scheduler.WaitForSchedule()
+			} else {
+				scheduler = scheduler.StartImmediately()
+			}
+			_, err := scheduler.Do(job.Function, job.Params...)
+
 			if err != nil {
 				log.Fatal().Err(err).Str("name", job.Name).Msg("failed to start cron job")
 			} else {
