@@ -7,6 +7,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"net"
 	"runtime/debug"
 )
@@ -66,6 +67,7 @@ func (srv *GrpcServer) Start() {
 
 		opts := []logging.Option{
 			logging.WithLogOnEvents(events...),
+			logging.WithLevels(MyServerCodeToLevel),
 			//logging.WithDisableLoggingFields("method_type", "protocol"),
 			// Add any other option (check functions starting with logging.With).
 		}
@@ -118,4 +120,21 @@ func (srv *GrpcServer) Stop() {
 func (srv *GrpcServer) Name() string {
 	return fmt.Sprintf("grpcServer at port %s", srv.Port)
 
+}
+
+func MyServerCodeToLevel(code codes.Code) logging.Level {
+	switch code {
+	case codes.OK, codes.NotFound, codes.Canceled, codes.AlreadyExists, codes.InvalidArgument, codes.Unauthenticated, codes.FailedPrecondition:
+		return logging.LevelDebug
+
+	case codes.DeadlineExceeded, codes.PermissionDenied, codes.ResourceExhausted, codes.Aborted,
+		codes.OutOfRange, codes.Unavailable:
+		return logging.LevelWarn
+
+	case codes.Unknown, codes.Unimplemented, codes.Internal, codes.DataLoss:
+		return logging.LevelError
+
+	default:
+		return logging.LevelError
+	}
 }

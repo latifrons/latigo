@@ -36,6 +36,7 @@ func ExampleInterceptorLogger() {
 
 	opts := []logging.Option{
 		logging.WithLogOnEvents(logging.StartCall, logging.FinishCall),
+		logging.WithLevels(MyServerCodeToLevel),
 		// Add any other option (check functions starting with logging.With).
 	}
 
