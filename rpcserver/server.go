@@ -111,11 +111,11 @@ func RequestLoggerMiddleware() gin.HandlerFunc {
 		c.Request.Body = io.NopCloser(&buf)
 
 		l := len(body)
-		log.Info().Msgf("req length=[%d]", l)
+		log.Debug().Msgf("req length=[%d]", l)
 		if l < 4096 {
-			log.Info().Msg(string(body))
+			log.Trace().Msg(string(body))
 		}
-		log.Info().Any("header", c.Request.Header).Msg("header")
+		log.Trace().Any("header", c.Request.Header).Msg("header")
 		c.Next()
 	}
 }
@@ -136,9 +136,9 @@ func ResponseLoggerMiddleware() gin.HandlerFunc {
 		c.Writer = blw
 		c.Next()
 		l := len(blw.body.String())
-		log.Info().Msgf("rsp length=[%d]", l)
+		log.Debug().Msgf("rsp length=[%d]", l)
 		if l < 4096 {
-			log.Info().Msg(blw.body.String())
+			log.Trace().Msg(blw.body.String())
 		}
 	}
 }
