@@ -72,6 +72,7 @@ func (srv *RpcServer) initRouter() *gin.Engine {
 	if srv.DebugFlags.GinDebug {
 		logger := gin.LoggerWithConfig(gin.LoggerConfig{
 			SkipPaths: []string{"/", "/health",
+				"/metrics",
 				"/apis",
 				"/apis/swagger.json",
 				"/redoc.standalone.js.map",
@@ -88,6 +89,7 @@ func (srv *RpcServer) initRouter() *gin.Engine {
 	} else {
 		logger := gin.LoggerWithConfig(gin.LoggerConfig{
 			SkipPaths: []string{"/", "/health",
+				"/metrics",
 				"/apis",
 				"/apis/swagger.json",
 				"/redoc.standalone.js.map",
