@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 )
 
 type BasicEngine struct {
@@ -15,10 +16,12 @@ type BasicEngine struct {
 	EnvPrefix         string
 	DumpConfigOnStart bool
 	LogLevel          string
+	PostBootLatency   time.Duration
 
 	bootService      *boot.BootService
 	cronService      *cron.CronService
 	componentService *program.ComponentService
+	postBootService  *boot.BootService
 	injector         boot.Injector
 }
 
@@ -38,6 +41,13 @@ func (b *BasicEngine) SetupComponentProvider(componentProvider program.Component
 		ComponentProvider: componentProvider,
 	}
 }
+
+func (b *BasicEngine) SetupPostBootJob(bootJobProvider boot.BootJobProvider) {
+	b.postBootService = &boot.BootService{
+		BootJobProvider: bootJobProvider,
+	}
+}
+
 func (b *BasicEngine) SetupInjector(injector boot.Injector) {
 	b.injector = injector
 }
@@ -57,6 +67,9 @@ func (b *BasicEngine) setup() {
 
 		b.componentService.AddComponent(b.cronService)
 	}
+	if b.postBootService != nil {
+		b.postBootService.InitJobs()
+	}
 }
 
 func (b *BasicEngine) Start() {
@@ -68,6 +81,11 @@ func (b *BasicEngine) Start() {
 	}
 	if b.componentService != nil {
 		b.componentService.Start()
+	}
+	log.Info().Dur("sleep", b.PostBootLatency).Msg("wait to start post boot jobs")
+	time.Sleep(b.PostBootLatency)
+	if b.postBootService != nil {
+		b.postBootService.Boot()
 	}
 
 	// prevent sudden stop. Do your clean up here
