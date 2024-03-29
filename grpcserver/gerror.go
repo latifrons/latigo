@@ -93,9 +93,9 @@ func FromError(err error) (gerr *GError, ok bool) {
 		return verr, true
 	}
 
-	//if verr, ok := status.FromError(err); ok && verr != nil {
-	//	return Parse(verr.Message())
-	//}
+	if verr, ok := status.FromError(err); ok && verr != nil {
+		return Parse(verr.Message())
+	}
 
 	// other unknown error
 	return nil, false
