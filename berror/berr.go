@@ -38,13 +38,18 @@ func (b *BError) Error() string {
 	return fmt.Sprintf("code: %s, cat: %d, msg: %s, causedBy: %v", b.Code, b.ErrorCategory, b.Msg, b.CausedBy)
 }
 
-func new(code string, msg string, errorCategory ErrorCategory, causedBy error) *BError {
-	b := &BError{
+func new(code string, msg string, errorCategory ErrorCategory, causedBy error) (b *BError) {
+
+	if causedBy != nil {
+		causedBy = errors.New("")
+	}
+	b = &BError{
 		Code:          code,
 		Msg:           msg,
 		ErrorCategory: errorCategory,
-		CausedBy:      errors.Wrap(causedBy, "caused by"),
+		CausedBy:      causedBy,
 	}
+
 	return b
 }
 
