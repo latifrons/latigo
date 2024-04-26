@@ -3,6 +3,7 @@ package rpcserver
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/latifrons/latigo/grpcserver"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	codes "google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -21,6 +22,7 @@ type RpcWrapper struct {
 }
 
 func (rpc *RpcWrapper) ResponseDebug(c *gin.Context, status int, code string, msg string, debugMessage string, data interface{}) {
+	c.Error(errors.Errorf("%s: %s", code, debugMessage))
 	c.JSON(status, GeneralResponse{
 		Code:     code,
 		Msg:      msg,
@@ -30,6 +32,7 @@ func (rpc *RpcWrapper) ResponseDebug(c *gin.Context, status int, code string, ms
 }
 
 func (rpc *RpcWrapper) Response(c *gin.Context, status int, code string, msg string, data interface{}) {
+
 	c.JSON(status, GeneralResponse{
 		Code: code,
 		Msg:  msg,

@@ -40,7 +40,7 @@ func (b *BError) Error() string {
 
 func new(code string, msg string, errorCategory ErrorCategory, causedBy error) (b *BError) {
 
-	if causedBy != nil {
+	if causedBy == nil {
 		causedBy = errors.New("")
 	}
 	b = &BError{
