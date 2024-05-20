@@ -42,6 +42,8 @@ func new(code string, msg string, errorCategory ErrorCategory, causedBy error) (
 
 	if causedBy == nil {
 		causedBy = errors.New("")
+	} else if _, ok := causedBy.(StackTracer); !ok {
+		causedBy = errors.Wrap(causedBy, "")
 	}
 	b = &BError{
 		Code:          code,
