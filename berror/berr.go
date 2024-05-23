@@ -35,7 +35,12 @@ func (b *BError) StackTrace() errors.StackTrace {
 }
 
 func (b *BError) Error() string {
-	return fmt.Sprintf("code: %s, cat: %d, msg: %s, causedBy: %v", b.Code, b.ErrorCategory, b.Msg, b.CausedBy)
+	if b.CausedBy == nil {
+		return fmt.Sprintf("code: %s, cat: %d, msg: %s", b.Code, b.ErrorCategory, b.Msg)
+	} else {
+		return fmt.Sprintf("code: %s, cat: %d, msg: %s, causedBy: %v", b.Code, b.ErrorCategory, b.Msg, b.CausedBy)
+	}
+
 }
 
 func new(code string, msg string, errorCategory ErrorCategory, causedBy error) (b *BError) {
