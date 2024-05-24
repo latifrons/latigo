@@ -31,6 +31,9 @@ type BError struct {
 }
 
 func (b *BError) StackTrace() errors.StackTrace {
+	if b.CausedBy == nil {
+		return []errors.Frame{}
+	}
 	return b.CausedBy.(StackTracer).StackTrace()
 }
 
@@ -45,10 +48,10 @@ func (b *BError) Error() string {
 
 func new(code string, msg string, errorCategory ErrorCategory, causedBy error) (b *BError) {
 
-	if causedBy == nil {
-		causedBy = errors.New("")
-	} else if _, ok := causedBy.(StackTracer); !ok {
-		causedBy = errors.Wrap(causedBy, "")
+	if causedBy != nil {
+		if _, ok := causedBy.(StackTracer); !ok {
+			causedBy = errors.Wrap(causedBy, "")
+		}
 	}
 	b = &BError{
 		Code:          code,
