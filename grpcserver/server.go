@@ -8,6 +8,8 @@ import (
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/health"
+	healthgrpc "google.golang.org/grpc/health/grpc_health_v1"
 	"net"
 	"runtime/debug"
 )
@@ -33,6 +35,7 @@ type GrpcServer struct {
 	DebugFlags      DebugFlags
 	server          *grpc.Server
 	logger          zerolog.Logger
+	healthcheck     *health.Server
 }
 
 func (srv *GrpcServer) Start() {
@@ -100,12 +103,22 @@ func (srv *GrpcServer) Start() {
 	for _, service := range srv.ServiceProvider.ProvideAllServices() {
 		srv.server.RegisterService(service.Desc, service.SS)
 	}
+
+	srv.healthcheck = health.NewServer()
+	healthgrpc.RegisterHealthServer(srv.server, srv.healthcheck)
+
 	// Start gRPC server
 	lis, err := net.Listen("tcp", ":"+srv.Port)
 	if err != nil {
 		log.Fatal().Stack().Err(err).Msg("failed to listen")
 	}
 	log.Info().Str("port", srv.Port).Msg("listening gRPC on " + srv.Port)
+
+	for k, v := range srv.server.GetServiceInfo() {
+		log.Info().Str("service", k).Interface("methods", v).Msg("grpc service registered")
+	}
+	srv.SetStatus(healthgrpc.HealthCheckResponse_SERVING)
+
 	go func() {
 		if err := srv.server.Serve(lis); err != nil {
 			log.Fatal().Stack().Err(err).Msg("failed to serve")
@@ -137,4 +150,8 @@ func MyServerCodeToLevel(code codes.Code) logging.Level {
 	default:
 		return logging.LevelError
 	}
+}
+
+func (srv *GrpcServer) SetStatus(status healthgrpc.HealthCheckResponse_ServingStatus) {
+	srv.healthcheck.SetServingStatus("grpc.health.v1.Health", status)
 }
