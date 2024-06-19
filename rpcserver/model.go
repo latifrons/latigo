@@ -13,6 +13,7 @@ const OrderDirectionDESC = "DESC"
 var (
 	ErrBadRequest = "ErrBadRequest"
 	ErrInternal   = "ErrInternal"
+	ErrNotFound   = "ErrNotFound"
 )
 
 type PagingParams struct {

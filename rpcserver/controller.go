@@ -111,25 +111,45 @@ func (rpc *RpcWrapper) ResponseError(c *gin.Context, err error) bool {
 	// grpc error check
 	grpcError, ok := status.FromError(err)
 	if ok {
-		if grpcError.Code() == codes.Unavailable {
+		switch grpcError.Code() {
+		case codes.Unavailable:
 			rpc.ResponseDebug(c, http.StatusServiceUnavailable, ErrInternal, "service unreachable", grpcError.Message(), nil)
 			return true
+		case codes.NotFound:
+			rpc.ResponseDebug(c, http.StatusNotFound, ErrNotFound, "service not found", grpcError.Message(), nil)
+			return true
+		case codes.InvalidArgument:
+			rpc.ResponseDebug(c, http.StatusBadRequest, ErrBadRequest, "bad request", grpcError.Message(), nil)
+			return true
+		default:
+			// no action
+
 		}
 
 		gerr, ok := grpcserver.Parse(grpcError.Message())
 		if ok {
-			rpc.ResponseDebug(c, http.StatusOK, gerr.Code, gerr.UserMessage, gerr.ModuleName+":"+gerr.DebugMessage, nil)
+			switch gerr.Code {
+			case ErrBadRequest:
+				rpc.ResponseDebug(c, http.StatusBadRequest, gerr.Code, gerr.UserMessage, gerr.ModuleName+":"+gerr.DebugMessage, nil)
+			default:
+				rpc.ResponseDebug(c, http.StatusOK, gerr.Code, gerr.UserMessage, gerr.ModuleName+":"+gerr.DebugMessage, nil)
+			}
 		} else {
-			rpc.ResponseDebug(c, http.StatusServiceUnavailable, ErrInternal, "internal error", grpcError.Message(), nil)
+			rpc.ResponseDebug(c, http.StatusInternalServerError, ErrInternal, "internal error", grpcError.Message(), nil)
 		}
 
 		return true
 	} else {
 		gerr, ok := grpcserver.FromError(err)
 		if ok {
-			rpc.ResponseDebug(c, http.StatusOK, gerr.Code, gerr.UserMessage, gerr.DebugMessage, nil)
+			switch gerr.Code {
+			case ErrBadRequest:
+				rpc.ResponseDebug(c, http.StatusBadRequest, gerr.Code, gerr.UserMessage, gerr.ModuleName+":"+gerr.DebugMessage, nil)
+			default:
+				rpc.ResponseDebug(c, http.StatusOK, gerr.Code, gerr.UserMessage, gerr.ModuleName+":"+gerr.DebugMessage, nil)
+			}
 		} else {
-			rpc.ResponseDebug(c, http.StatusServiceUnavailable, ErrInternal, "internal error", grpcError.Message(), nil)
+			rpc.ResponseDebug(c, http.StatusInternalServerError, ErrInternal, "internal error", grpcError.Message(), nil)
 		}
 	}
 
