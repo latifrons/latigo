@@ -62,13 +62,12 @@ func (b *BasicEngine) setup() {
 	}
 	b.componentService.InitComponents()
 
-	if b.cronService != nil {
-		b.cronService.InitJobs()
-
-		b.componentService.AddComponent(b.cronService)
-	}
 	if b.postBootService != nil {
 		b.postBootService.InitJobs()
+	}
+
+	if b.cronService != nil {
+		b.cronService.InitJobs()
 	}
 }
 
@@ -87,6 +86,9 @@ func (b *BasicEngine) Start() {
 	if b.postBootService != nil {
 		b.postBootService.Boot()
 	}
+
+	b.cronService.Start()
+	b.componentService.AddComponent(b.cronService)
 
 	// prevent sudden stop. Do your clean up here
 	var gracefulStop = make(chan os.Signal)
