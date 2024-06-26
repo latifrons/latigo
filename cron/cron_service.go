@@ -17,14 +17,14 @@ const CronJobTypeCron = "cron"
 const CronJobTypeInterval = "interval"
 
 type CronJob struct {
-	Name            string
-	Type            string
-	Cron            string
-	WaitForSchedule bool
-	Singleton       bool
-	Interval        time.Duration
-	Function        interface{}
-	Params          []interface{}
+	Name             string
+	Type             string
+	Cron             string
+	WaitForSchedule  bool
+	DisableSingleton bool
+	Interval         time.Duration
+	Function         interface{}
+	Params           []interface{}
 }
 
 type CronJobProvider interface {
@@ -62,7 +62,10 @@ func (c *CronService) Start() {
 
 	for _, job := range c.jobs {
 		if job.Type == CronJobTypeCron {
-			scheduler := c.cr.CronWithSeconds(job.Cron).SingletonMode()
+			scheduler := c.cr.CronWithSeconds(job.Cron)
+			if !job.DisableSingleton {
+				scheduler = scheduler.SingletonMode()
+			}
 			_, err := scheduler.Do(job.Function, job.Params...)
 			if err != nil {
 				log.Fatal().Err(err).Str("name", job.Name).Msg("failed to start cron job")
@@ -72,6 +75,9 @@ func (c *CronService) Start() {
 			continue
 		} else {
 			scheduler := c.cr.Every(job.Interval).SingletonMode()
+			if !job.DisableSingleton {
+				scheduler = scheduler.SingletonMode()
+			}
 
 			if job.WaitForSchedule {
 				scheduler = scheduler.WaitForSchedule()
