@@ -89,6 +89,15 @@ func (b *EngineV2) Start() {
 			scheduler := b.cr.Every(job.Interval)
 			if job.WaitForSchedule {
 				scheduler = scheduler.WaitForSchedule()
+			} else {
+				scheduler = scheduler.StartImmediately()
+			}
+			_, err := scheduler.Do(job.Function, job.Params...)
+
+			if err != nil {
+				log.Fatal().Err(err).Str("name", job.Name).Msg("failed to start cron job")
+			} else {
+				log.Info().Str("name", job.Name).Msg("cron job started")
 			}
 		}
 	}
