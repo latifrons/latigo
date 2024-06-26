@@ -21,6 +21,7 @@ type CronJob struct {
 	Type            string
 	Cron            string
 	WaitForSchedule bool
+	Singleton       bool
 	Interval        time.Duration
 	Function        interface{}
 	Params          []interface{}
@@ -61,7 +62,7 @@ func (c *CronService) Start() {
 
 	for _, job := range c.jobs {
 		if job.Type == CronJobTypeCron {
-			scheduler := c.cr.CronWithSeconds(job.Cron)
+			scheduler := c.cr.CronWithSeconds(job.Cron).SingletonMode()
 			_, err := scheduler.Do(job.Function, job.Params...)
 			if err != nil {
 				log.Fatal().Err(err).Str("name", job.Name).Msg("failed to start cron job")
@@ -70,13 +71,14 @@ func (c *CronService) Start() {
 			}
 			continue
 		} else {
-			scheduler := c.cr.Every(job.Interval)
+			scheduler := c.cr.Every(job.Interval).SingletonMode()
 
 			if job.WaitForSchedule {
 				scheduler = scheduler.WaitForSchedule()
 			} else {
 				scheduler = scheduler.StartImmediately()
 			}
+
 			_, err := scheduler.Do(job.Function, job.Params...)
 
 			if err != nil {
