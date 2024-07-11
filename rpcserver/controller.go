@@ -23,6 +23,9 @@ type RpcWrapper struct {
 
 func (rpc *RpcWrapper) ResponseDebug(c *gin.Context, status int, code string, msg string, debugMessage string, data interface{}) {
 	c.Error(errors.Errorf("%s: %s", code, debugMessage))
+	if !rpc.Flags.ReturnDetailError {
+		debugMessage = ""
+	}
 	c.JSON(status, GeneralResponse{
 		Code:     code,
 		Msg:      msg,
