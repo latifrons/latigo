@@ -2,6 +2,7 @@ package rpcserver
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/latifrons/latigo/berror"
 	"github.com/latifrons/latigo/grpcserver"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -152,7 +153,21 @@ func (rpc *RpcWrapper) ResponseError(c *gin.Context, err error) bool {
 				rpc.ResponseDebug(c, http.StatusOK, gerr.Code, gerr.UserMessage, gerr.ModuleName+":"+gerr.DebugMessage, nil)
 			}
 		} else {
-			rpc.ResponseDebug(c, http.StatusInternalServerError, ErrInternal, "internal error", grpcError.Message(), nil)
+			berr, ok := err.(*berror.BError)
+			if ok {
+				switch berr.Code {
+				case berror.ErrInternal:
+					rpc.ResponseDebug(c, http.StatusInternalServerError, ErrInternal, "internal server error", berr.Msg, nil)
+					return true
+				case berror.ErrBadRequest:
+					rpc.ResponseDebug(c, http.StatusBadRequest, ErrBadRequest, "bad request", berr.Msg, nil)
+					return true
+				default:
+					rpc.ResponseDebug(c, http.StatusOK, berr.Code, berr.Msg, berr.Error(), nil)
+				}
+			} else {
+				rpc.ResponseDebug(c, http.StatusInternalServerError, ErrInternal, "internal error", err.Error(), nil)
+			}
 		}
 	}
 
