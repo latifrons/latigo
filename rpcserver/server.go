@@ -86,17 +86,6 @@ func (srv *RpcServer) initRouter() *gin.Engine {
 		if srv.DebugFlags.ResponseLog {
 			router.Use(ResponseLoggerMiddleware())
 		}
-	} else {
-		logger := gin.LoggerWithConfig(gin.LoggerConfig{
-			SkipPaths: []string{"/", "/health",
-				"/metrics",
-				"/apis",
-				"/apis/swagger.json",
-				"/redoc.standalone.js.map",
-				"/574a25b96816f2c682b8.worker.js.map",
-				"/docs/"},
-		})
-		router.Use(logger)
 	}
 	return router
 }
