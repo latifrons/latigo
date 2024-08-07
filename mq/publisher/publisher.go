@@ -2,24 +2,32 @@ package publisher
 
 import (
 	"context"
-	"github.com/makasim/amqpextra"
-	"github.com/makasim/amqpextra/logger"
-	"github.com/makasim/amqpextra/publisher"
+	"github.com/latifrons/amqpextra"
+	"github.com/latifrons/amqpextra/logger"
+	pp "github.com/latifrons/amqpextra/publisher"
 	"github.com/rabbitmq/amqp091-go"
 	"github.com/rs/zerolog/log"
-	"time"
 )
+
+type DeclareExchangeArgs struct {
+	ExchangeName string
+	Kind         string
+	Durable      bool
+	AutoDelete   bool
+	Internal     bool
+	NoWait       bool
+	Args         map[string]interface{}
+}
 
 type PublisherOption func(*ReliableRabbitPublisher)
 
 type ReliableRabbitPublisher struct {
-	URL       string
-	initFunc  func(channel *amqp091.Channel) error
-	cleanFunc func(channel *amqp091.Channel) error
-	logger    logger.Logger
+	URL                 string
+	DeclareExchangeArgs DeclareExchangeArgs
 
+	logger    logger.Logger
 	dailer    *amqpextra.Dialer
-	publisher *publisher.Publisher
+	publisher *pp.Publisher
 }
 
 func NewReliableRabbitPublisher(url string, opts ...PublisherOption) *ReliableRabbitPublisher {
@@ -32,55 +40,61 @@ func NewReliableRabbitPublisher(url string, opts ...PublisherOption) *ReliableRa
 	return c
 }
 
-func WithInitFunc(f func(*amqp091.Channel) error) PublisherOption {
+func WithDeclareExchangeArgs(args DeclareExchangeArgs) PublisherOption {
 	return func(c *ReliableRabbitPublisher) {
-		c.initFunc = f
+		c.DeclareExchangeArgs = args
 	}
 }
 
-func WithCleanFunc(f func(*amqp091.Channel) error) PublisherOption {
+func WithLogger(logger2 logger.Logger) PublisherOption {
 	return func(c *ReliableRabbitPublisher) {
-		c.cleanFunc = f
+		c.logger = logger2
 	}
+}
+
+func WithInitFunc(args func(channel *amqp091.Channel) (err error)) PublisherOption {
+	return func(c *ReliableRabbitPublisher) {
+	}
+}
+
+func (c *ReliableRabbitPublisher) Reset() error {
+	return nil
 }
 
 func (c *ReliableRabbitPublisher) Start() (err error) {
-	c.dailer, err = amqpextra.NewDialer(amqpextra.WithURL(c.URL))
-	if err != nil {
-		return
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
+	dialerChannel := make(chan amqpextra.State, 10)
 
-	connection, err := c.dailer.Connection(ctx)
+	c.dailer, err = amqpextra.NewDialer(amqpextra.WithURL(c.URL),
+		amqpextra.WithLogger(c.logger),
+		amqpextra.WithNotify(dialerChannel),
+	)
 	if err != nil {
 		return
 	}
 
-	channel, err := connection.Channel()
+	c.publisher, err = c.dailer.Publisher(
+		pp.WithLogger(c.logger),
+		pp.WithInitFunc(c.initer),
+	)
 	if err != nil {
 		return
 	}
-	defer func(channel *amqp091.Channel) {
-		err := channel.Close()
-		if err != nil {
-			log.Error().Err(err).Msg("failed to close channel")
+
+	go func() {
+		for {
+			select {
+			case v := <-dialerChannel:
+				log.Info().Interface("v", v).Msg("dialer updates")
+			}
 		}
-	}(channel)
 
-	if c.initFunc != nil {
-		err = c.initFunc(channel)
-		if err != nil {
-			return
-		}
-	}
+	}()
 
-	c.publisher, err = c.dailer.Publisher(publisher.WithLogger(c.logger))
 	return
 }
 
 func (c *ReliableRabbitPublisher) Publish(ctx context.Context, exchange, key string, msg amqp091.Publishing) (err error) {
-	return c.publisher.Publish(publisher.Message{
+	return c.publisher.Publish(pp.Message{
 		Context:      ctx,
 		Exchange:     exchange,
 		Key:          key,
@@ -92,44 +106,20 @@ func (c *ReliableRabbitPublisher) Publish(ctx context.Context, exchange, key str
 	})
 }
 
-func (c *ReliableRabbitPublisher) Reset() (err error) {
-	// must delete all
-	log.Info().Msg("reliable rabiit publisher reset")
-	ctx, cancelFunc := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancelFunc()
-
-	conn, err := c.dailer.Connection(ctx)
-	if err != nil {
-		log.Error().Err(err).Msg("failed to reset")
-	}
-	channel, err := conn.Channel()
-	if err != nil {
-		log.Error().Err(err).Msg("failed to reset")
-	}
-	defer func(channel *amqp091.Channel) {
-		err := channel.Close()
-		if err != nil {
-			log.Error().Err(err).Msg("failed to close channel")
-		}
-	}(channel)
-
-	if c.cleanFunc != nil {
-		err = c.cleanFunc(channel)
-		if err != nil {
-			log.Error().Err(err).Msg("failed to clean")
-		}
-	}
-	if c.initFunc != nil {
-		err := c.initFunc(channel)
-		if err != nil {
-			log.Error().Err(err).Msg("failed to init")
-		}
-	}
-
-	return
-}
-
 func (c *ReliableRabbitPublisher) Stop() {
 	c.publisher.Close()
 	c.dailer.Close()
+}
+
+func (c *ReliableRabbitPublisher) initer(conn pp.AMQPConnection) (channelP pp.AMQPChannel, err error) {
+	channel, err := conn.(*amqp091.Connection).Channel()
+	if err != nil {
+		return
+	}
+	// declare exchange
+	err = channel.ExchangeDeclare(c.DeclareExchangeArgs.ExchangeName, c.DeclareExchangeArgs.Kind, c.DeclareExchangeArgs.Durable, c.DeclareExchangeArgs.AutoDelete, c.DeclareExchangeArgs.Internal, c.DeclareExchangeArgs.NoWait, c.DeclareExchangeArgs.Args)
+	if err != nil {
+		return
+	}
+	return channel, err
 }

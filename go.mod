@@ -7,10 +7,10 @@ require (
 	github.com/go-co-op/gocron v1.12.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.0.0
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.0.1
+	github.com/latifrons/amqpextra v0.0.2
 	github.com/latifrons/commongo v0.0.11
-	github.com/makasim/amqpextra v1.2.1
 	github.com/pkg/errors v0.9.1
-	github.com/rabbitmq/amqp091-go v1.9.0
+	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/rs/zerolog v1.29.1
 	github.com/spf13/viper v1.7.1
 	google.golang.org/grpc v1.53.0

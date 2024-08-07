@@ -2,18 +2,30 @@ package consumer
 
 import (
 	"context"
-	"github.com/makasim/amqpextra"
-	"github.com/makasim/amqpextra/consumer"
-	"github.com/makasim/amqpextra/logger"
+	"github.com/latifrons/amqpextra"
+	"github.com/latifrons/amqpextra/consumer"
+	"github.com/latifrons/amqpextra/logger"
 	"github.com/rabbitmq/amqp091-go"
 	"github.com/rs/zerolog/log"
-	"time"
 )
 
-type ConsumerOption func(*ReliableRabbitConsumer)
+type ExchangeArgs struct {
+	ExchangeName string
+	RoutingKey   string
+}
 
-type ReliableRabbitConsumerArgs struct {
+type DeclaredQueueArgs struct {
+	Name       string
+	Durable    bool
+	AutoDelete bool
+	Exclusive  bool
+	NoWait     bool
+	Args       amqp091.Table
+}
+
+type ConsumerArgs struct {
 	Consumer  string
+	QueueName string
 	AutoAck   bool
 	Exclusive bool
 	NoLocal   bool
@@ -21,30 +33,24 @@ type ReliableRabbitConsumerArgs struct {
 	Args      amqp091.Table
 }
 
+type ConsumerOption func(*ReliableRabbitConsumer)
+
 type ReliableRabbitConsumer struct {
-	URL          string
-	ExchangeName string
-	QueueName    string
-	RoutingKey   string
-
-	HandleFunc func(ctx context.Context, msg amqp091.Delivery) interface{}
-	initFunc   func(channel *amqp091.Channel) error
-	cleanFunc  func(channel *amqp091.Channel) error
-	logger     logger.Logger
-
-	dailer        *amqpextra.Dialer
-	consumer      *consumer.Consumer
-	consumerArgs  ReliableRabbitConsumerArgs
-	prefetchCount int
-	global        bool
+	URL               string
+	ExchangeArgs      ExchangeArgs
+	DeclaredQueueArgs DeclaredQueueArgs
+	ConsumerArgs      ConsumerArgs
+	HandleFunc        func(ctx context.Context, msg amqp091.Delivery) interface{}
+	logger            logger.Logger
+	dailer            *amqpextra.Dialer
+	consumer          *consumer.Consumer
+	prefetchCount     int
+	global            bool
 }
 
-func NewReliableRabbitConsumer(url string, exchageName string, queueName string, routingKey string, handleFunc func(ctx context.Context, msg amqp091.Delivery) interface{}, opts ...ConsumerOption) *ReliableRabbitConsumer {
+func NewReliableRabbitConsumer(url string, handleFunc func(ctx context.Context, msg amqp091.Delivery) interface{}, opts ...ConsumerOption) *ReliableRabbitConsumer {
 	c := &ReliableRabbitConsumer{
 		URL:           url,
-		ExchangeName:  exchageName,
-		QueueName:     queueName,
-		RoutingKey:    routingKey,
 		HandleFunc:    handleFunc,
 		prefetchCount: 1,
 		global:        false,
@@ -55,27 +61,25 @@ func NewReliableRabbitConsumer(url string, exchageName string, queueName string,
 	return c
 }
 
-func WithInitFunc(f func(*amqp091.Channel) error) ConsumerOption {
-	return func(c *ReliableRabbitConsumer) {
-		c.initFunc = f
-	}
-}
-
-func WithCleanFunc(f func(*amqp091.Channel) error) ConsumerOption {
-	return func(c *ReliableRabbitConsumer) {
-		c.cleanFunc = f
-	}
-}
-
 func WithLogger(l logger.Logger) ConsumerOption {
 	return func(c *ReliableRabbitConsumer) {
 		c.logger = l
 	}
 }
 
-func WithConsumerArgs(consumerArgs ReliableRabbitConsumerArgs) ConsumerOption {
+func WithDeclaredQueueArgs(args DeclaredQueueArgs) ConsumerOption {
 	return func(c *ReliableRabbitConsumer) {
-		c.consumerArgs = consumerArgs
+		c.DeclaredQueueArgs = args
+	}
+}
+func WithConsumerArgs(args ConsumerArgs) ConsumerOption {
+	return func(c *ReliableRabbitConsumer) {
+		c.ConsumerArgs = args
+	}
+}
+func WithExchangeArgs(args ExchangeArgs) ConsumerOption {
+	return func(c *ReliableRabbitConsumer) {
+		c.ExchangeArgs = args
 	}
 }
 
@@ -87,87 +91,51 @@ func WithQos(prefetchCount int, global bool) ConsumerOption {
 }
 
 func (c *ReliableRabbitConsumer) Start() (err error) {
-	c.dailer, err = amqpextra.NewDialer(amqpextra.WithURL(c.URL))
+	//ctx, cancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
+	//defer cancelFunc()
+
+	dialerChannel := make(chan amqpextra.State, 10)
+	consumerChannel := make(chan consumer.State, 10)
+
+	c.dailer, err = amqpextra.NewDialer(
+		amqpextra.WithURL(c.URL),
+		//amqpextra.WithContext(ctx),
+		amqpextra.WithLogger(c.logger),
+		amqpextra.WithNotify(dialerChannel),
+	)
 	if err != nil {
 		return
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-
-	connection, err := c.dailer.Connection(ctx)
-	if err != nil {
-		return
-	}
-
-	channel, err := connection.Channel()
-	if err != nil {
-		return
-	}
-	defer func(channel *amqp091.Channel) {
-		err := channel.Close()
-		if err != nil {
-			log.Error().Err(err).Msg("failed to close channel")
-		}
-	}(channel)
-
-	if c.initFunc != nil {
-		err = c.initFunc(channel)
-		if err != nil {
-			return
-		}
 	}
 
 	h := consumer.HandlerFunc(c.HandleFunc)
 
 	c.consumer, err = c.dailer.Consumer(
-		consumer.WithExchange(c.ExchangeName, c.RoutingKey),
-		consumer.WithQueue(c.QueueName),
+		consumer.WithNotify(consumerChannel),
+		consumer.WithExchange(c.ExchangeArgs.ExchangeName, c.ExchangeArgs.RoutingKey),
+		consumer.WithDeclareQueue(c.DeclaredQueueArgs.Name, c.DeclaredQueueArgs.Durable, c.DeclaredQueueArgs.AutoDelete, c.DeclaredQueueArgs.Exclusive, c.DeclaredQueueArgs.NoWait, c.DeclaredQueueArgs.Args),
+		//consumer.WithQueue(c.ConsumerArgs.QueueName),
 		consumer.WithLogger(c.logger),
 		consumer.WithHandler(h),
 		consumer.WithQos(c.prefetchCount, c.global),
-		consumer.WithConsumeArgs(c.consumerArgs.Consumer,
-			c.consumerArgs.AutoAck,
-			c.consumerArgs.Exclusive,
-			c.consumerArgs.NoLocal,
-			c.consumerArgs.NoWait,
-			c.consumerArgs.Args))
+		consumer.WithConsumeArgs(c.ConsumerArgs.Consumer,
+			c.ConsumerArgs.AutoAck,
+			c.ConsumerArgs.Exclusive,
+			c.ConsumerArgs.NoLocal,
+			c.ConsumerArgs.NoWait,
+			c.ConsumerArgs.Args))
 
+	go func() {
+		for {
+			select {
+			case v := <-dialerChannel:
+				log.Info().Interface("v", v).Msg("dialer updates")
+			case v := <-consumerChannel:
+				log.Info().Interface("v", v).Msg("consumer updates")
+			}
+		}
+
+	}()
 	return
-}
-
-func (c *ReliableRabbitConsumer) Reset() {
-	// must delete all
-	log.Info().Msg("reliable rabbit consumer reset")
-	ctx, cancelFunc := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancelFunc()
-
-	conn, err := c.dailer.Connection(ctx)
-	if err != nil {
-		log.Error().Err(err).Msg("failed to reset")
-	}
-	channel, err := conn.Channel()
-	if err != nil {
-		log.Error().Err(err).Msg("failed to reset")
-	}
-	defer func(channel *amqp091.Channel) {
-		err := channel.Close()
-		if err != nil {
-			log.Error().Err(err).Msg("failed to close channel")
-		}
-	}(channel)
-
-	if c.cleanFunc != nil {
-		err = c.cleanFunc(channel)
-		if err != nil {
-			log.Error().Err(err).Msg("failed to clean")
-		}
-	}
-	if c.initFunc != nil {
-		err := c.initFunc(channel)
-		if err != nil {
-			log.Error().Err(err).Msg("failed to init")
-		}
-	}
 }
 
 func (c *ReliableRabbitConsumer) Stop() {
