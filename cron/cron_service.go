@@ -74,17 +74,15 @@ func (c *CronService) Start() {
 			}
 			continue
 		} else {
-			scheduler := c.cr.Every(job.Interval).SingletonMode()
+			scheduler := c.cr.Every(job.Interval)
 			if !job.DisableSingleton {
 				scheduler = scheduler.SingletonMode()
 			}
-
 			if job.WaitForSchedule {
 				scheduler = scheduler.WaitForSchedule()
 			} else {
 				scheduler = scheduler.StartImmediately()
 			}
-
 			_, err := scheduler.Do(job.Function, job.Params...)
 
 			if err != nil {

@@ -78,6 +78,9 @@ func (b *EngineV2) Start() {
 	for _, job := range b.registeredCrons {
 		if job.Type == cron.CronJobTypeCron {
 			scheduler := b.cr.CronWithSeconds(job.Cron)
+			if !job.DisableSingleton {
+				scheduler = scheduler.SingletonMode()
+			}
 			_, err := scheduler.Do(job.Function, job.Params...)
 			if err != nil {
 				log.Fatal().Err(err).Str("name", job.Name).Msg("failed to start cron job")
@@ -87,6 +90,9 @@ func (b *EngineV2) Start() {
 			continue
 		} else {
 			scheduler := b.cr.Every(job.Interval)
+			if !job.DisableSingleton {
+				scheduler = scheduler.SingletonMode()
+			}
 			if job.WaitForSchedule {
 				scheduler = scheduler.WaitForSchedule()
 			} else {
