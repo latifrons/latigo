@@ -101,8 +101,8 @@ func RequestLoggerMiddleware() gin.HandlerFunc {
 		body, _ := io.ReadAll(tee)
 		c.Request.Body = io.NopCloser(&buf)
 		l := len(body)
-		log.Trace().Str("method", c.Request.Method).Str("path", c.Request.URL.Path).Int("req", l).Any("header", c.Request.Header).Msg("in req")
-		log.Trace().Msg("RSP: " + string(body[:min(l, 4096)]))
+		log.Trace().Str("method", c.Request.Method).Str("path", c.Request.URL.Path).Int("req", l).Any("header", c.Request.Header).Msg("REQ")
+		log.Trace().Msg("REQ: " + string(body[:min(l, 1024)]))
 		c.Next()
 	}
 }
@@ -125,7 +125,7 @@ func ResponseLoggerMiddleware() gin.HandlerFunc {
 
 		s := blw.body.String()
 		l := len(s)
-		log.Trace().Str("method", c.Request.Method).Str("path", c.Request.URL.Path).Int("rsp", l).Msg("in rep")
+		log.Trace().Str("method", c.Request.Method).Str("path", c.Request.URL.Path).Int("rsp", l).Msg("RSP")
 		log.Trace().Msg("RSP: " + s[:min(l, 4096)])
 	}
 }
