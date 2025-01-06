@@ -100,13 +100,9 @@ func RequestLoggerMiddleware() gin.HandlerFunc {
 		tee := io.TeeReader(c.Request.Body, &buf)
 		body, _ := io.ReadAll(tee)
 		c.Request.Body = io.NopCloser(&buf)
-
 		l := len(body)
-		log.Debug().Msgf("req length=[%d]", l)
-		if l < 4096 {
-			log.Trace().Msg(string(body))
-		}
-		log.Trace().Any("header", c.Request.Header).Msg("header")
+		log.Trace().Str("method", c.Request.Method).Str("path", c.Request.URL.Path).Int("req", l).Any("header", c.Request.Header).Msg("in req")
+		log.Trace().Msg("RSP: " + string(body[:min(l, 4096)]))
 		c.Next()
 	}
 }
@@ -126,10 +122,10 @@ func ResponseLoggerMiddleware() gin.HandlerFunc {
 		blw := &bodyLogWriter{body: bytes.NewBufferString(""), ResponseWriter: c.Writer}
 		c.Writer = blw
 		c.Next()
-		l := len(blw.body.String())
-		log.Debug().Msgf("rsp length=[%d]", l)
-		if l < 4096 {
-			log.Trace().Msg(blw.body.String())
-		}
+
+		s := blw.body.String()
+		l := len(s)
+		log.Trace().Str("method", c.Request.Method).Str("path", c.Request.URL.Path).Int("rsp", l).Msg("in rep")
+		log.Trace().Msg("RSP: " + s[:min(l, 4096)])
 	}
 }
