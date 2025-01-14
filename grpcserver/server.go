@@ -36,6 +36,11 @@ type GrpcServer struct {
 	server          *grpc.Server
 	logger          zerolog.Logger
 	healthcheck     *health.Server
+	interceptors    []grpc.UnaryServerInterceptor
+}
+
+func (srv *GrpcServer) WithUnaryServerInterceptor(interceptors ...grpc.UnaryServerInterceptor) {
+	srv.interceptors = interceptors
 }
 
 func (srv *GrpcServer) Start() {
@@ -78,6 +83,10 @@ func (srv *GrpcServer) Start() {
 		streamInterceptos = append(streamInterceptos, logging.StreamServerInterceptor(InterceptorLogger(srv.logger), opts...))
 	}
 
+	if len(srv.interceptors) > 0 {
+		unaryInterceptors = append(unaryInterceptors, srv.interceptors...)
+	}
+
 	srv.server = grpc.NewServer(
 		//grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
 		//
@@ -100,6 +109,7 @@ func (srv *GrpcServer) Start() {
 			streamInterceptos...,
 		),
 	)
+
 	for _, service := range srv.ServiceProvider.ProvideAllServices() {
 		srv.server.RegisterService(service.Desc, service.SS)
 	}
