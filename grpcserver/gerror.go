@@ -93,9 +93,10 @@ func FromError(err error) (gerr *GError, code codes.Code, ok bool) {
 		return verr, codes.Internal, true
 	}
 
-	if verr, ok := status.FromError(err); ok && verr != nil {
-		code = verr.Code()
-		gerr, ok = Parse(verr.Message())
+	var serr *status.Status
+	if serr, ok = status.FromError(err); ok && serr != nil {
+		code = serr.Code()
+		gerr, ok = Parse(serr.Message())
 		return
 	}
 
