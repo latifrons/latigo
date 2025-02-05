@@ -144,7 +144,7 @@ func (rpc *RpcWrapper) ResponseError(c *gin.Context, err error) bool {
 
 		return true
 	} else {
-		gerr, ok := grpcserver.FromError(err)
+		gerr, _, ok := grpcserver.FromError(err)
 		if ok {
 			switch gerr.Code {
 			case ErrBadRequest:

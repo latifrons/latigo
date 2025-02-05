@@ -84,19 +84,21 @@ func WrapGRpcErrorBadRequest(from string, err error) error {
 }
 
 // FromError try to convert go error to *Error.
-func FromError(err error) (gerr *GError, ok bool) {
+func FromError(err error) (gerr *GError, code codes.Code, ok bool) {
 	if err == nil {
-		return nil, true
+		return nil, codes.OK, true
 	}
 	var verr *GError
 	if errors.As(err, &verr) && verr != nil {
-		return verr, true
+		return verr, codes.Internal, true
 	}
 
 	if verr, ok := status.FromError(err); ok && verr != nil {
-		return Parse(verr.Message())
+		code = verr.Code()
+		gerr, ok = Parse(verr.Message())
+		return
 	}
 
 	// other unknown error
-	return nil, false
+	return nil, codes.Unknown, false
 }
