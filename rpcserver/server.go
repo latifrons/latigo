@@ -18,9 +18,11 @@ type RouterProvider interface {
 }
 
 type DebugFlags struct {
-	GinDebug    bool
-	RequestLog  bool
-	ResponseLog bool
+	GinDebug            bool
+	RequestLog          bool
+	ResponseLog         bool
+	ReqBodyPrintLength  int
+	RespBodyPrintLength int
 }
 
 type RpcServer struct {
@@ -81,10 +83,10 @@ func (srv *RpcServer) initRouter() *gin.Engine {
 		})
 		router.Use(logger)
 		if srv.DebugFlags.RequestLog {
-			router.Use(RequestLoggerMiddleware())
+			router.Use(RequestLoggerMiddleware(min(srv.DebugFlags.ReqBodyPrintLength, 4096)))
 		}
 		if srv.DebugFlags.ResponseLog {
-			router.Use(ResponseLoggerMiddleware())
+			router.Use(ResponseLoggerMiddleware(min(srv.DebugFlags.RespBodyPrintLength, 4096)))
 		}
 	}
 	return router
@@ -94,7 +96,7 @@ func (srv *RpcServer) InitDefault() {
 
 }
 
-func RequestLoggerMiddleware() gin.HandlerFunc {
+func RequestLoggerMiddleware(reqBodyPrintLength int) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var buf bytes.Buffer
 		tee := io.TeeReader(c.Request.Body, &buf)
@@ -102,7 +104,7 @@ func RequestLoggerMiddleware() gin.HandlerFunc {
 		c.Request.Body = io.NopCloser(&buf)
 		l := len(body)
 		log.Trace().Str("method", c.Request.Method).Str("path", c.Request.URL.Path).Int("req", l).Any("header", c.Request.Header).Msg("REQ")
-		log.Trace().Msg("REQ: " + string(body[:min(l, 1024)]))
+		log.Trace().Msg("REQ: " + string(body[:min(l, reqBodyPrintLength)]))
 		c.Next()
 	}
 }
@@ -117,7 +119,7 @@ func (w bodyLogWriter) Write(b []byte) (int, error) {
 	return w.ResponseWriter.Write(b)
 }
 
-func ResponseLoggerMiddleware() gin.HandlerFunc {
+func ResponseLoggerMiddleware(respBodyPrintLength int) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		blw := &bodyLogWriter{body: bytes.NewBufferString(""), ResponseWriter: c.Writer}
 		c.Writer = blw
@@ -126,6 +128,6 @@ func ResponseLoggerMiddleware() gin.HandlerFunc {
 		s := blw.body.String()
 		l := len(s)
 		log.Trace().Str("method", c.Request.Method).Str("path", c.Request.URL.Path).Int("rsp", l).Msg("RSP")
-		log.Trace().Msg("RSP: " + s[:min(l, 4096)])
+		log.Trace().Msg("RSP: " + s[:min(l, respBodyPrintLength)])
 	}
 }
