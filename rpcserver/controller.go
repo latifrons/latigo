@@ -132,9 +132,16 @@ func (rpc *RpcWrapper) ResponseError(c *gin.Context, err error) bool {
 
 		gerr, ok := grpcserver.Parse(grpcError.Message())
 		if ok {
-			switch gerr.Code {
-			case ErrBadRequest:
-				rpc.ResponseDebug(c, http.StatusBadRequest, gerr.Code, gerr.UserMessage, gerr.ModuleName+":"+gerr.DebugMessage, nil)
+			switch gerr.Category {
+			case grpcserver.Category_System:
+				rpc.ResponseDebug(c, http.StatusInternalServerError, ErrInternal, "internal error", grpcError.Message(), nil)
+			case grpcserver.Category_Business:
+				switch gerr.Code {
+				case ErrBadRequest:
+					rpc.ResponseDebug(c, http.StatusBadRequest, gerr.Code, gerr.UserMessage, gerr.ModuleName+":"+gerr.DebugMessage, nil)
+				default:
+					rpc.ResponseDebug(c, http.StatusOK, gerr.Code, gerr.UserMessage, gerr.ModuleName+":"+gerr.DebugMessage, nil)
+				}
 			default:
 				rpc.ResponseDebug(c, http.StatusOK, gerr.Code, gerr.UserMessage, gerr.ModuleName+":"+gerr.DebugMessage, nil)
 			}
@@ -146,9 +153,16 @@ func (rpc *RpcWrapper) ResponseError(c *gin.Context, err error) bool {
 	} else {
 		gerr, _, ok := grpcserver.FromError(err)
 		if ok {
-			switch gerr.Code {
-			case ErrBadRequest:
-				rpc.ResponseDebug(c, http.StatusBadRequest, gerr.Code, gerr.UserMessage, gerr.ModuleName+":"+gerr.DebugMessage, nil)
+			switch gerr.Category {
+			case grpcserver.Category_System:
+				rpc.ResponseDebug(c, http.StatusInternalServerError, ErrInternal, "internal error", grpcError.Message(), nil)
+			case grpcserver.Category_Business:
+				switch gerr.Code {
+				case ErrBadRequest:
+					rpc.ResponseDebug(c, http.StatusBadRequest, gerr.Code, gerr.UserMessage, gerr.ModuleName+":"+gerr.DebugMessage, nil)
+				default:
+					rpc.ResponseDebug(c, http.StatusOK, gerr.Code, gerr.UserMessage, gerr.ModuleName+":"+gerr.DebugMessage, nil)
+				}
 			default:
 				rpc.ResponseDebug(c, http.StatusOK, gerr.Code, gerr.UserMessage, gerr.ModuleName+":"+gerr.DebugMessage, nil)
 			}
@@ -160,7 +174,7 @@ func (rpc *RpcWrapper) ResponseError(c *gin.Context, err error) bool {
 					rpc.ResponseDebug(c, http.StatusInternalServerError, ErrInternal, "internal server error", berr.Msg, nil)
 					return true
 				case berror.ErrBadRequest:
-					rpc.ResponseDebug(c, http.StatusBadRequest, ErrBadRequest, "bad request", berr.Msg, nil)
+					rpc.ResponseDebug(c, http.StatusBadRequest, ErrBadRequest, berr.Msg, berr.Msg, nil)
 					return true
 				default:
 					rpc.ResponseDebug(c, http.StatusOK, berr.Code, berr.Msg, berr.Error(), nil)

@@ -35,8 +35,8 @@ func NewGError(module string, berrorCode, userMessage, debugMessage, stackTrace 
 	return
 }
 
-func NewGRpcError(module string, code codes.Code, berrorCode string, debugMessage string) (errOut error) {
-	gerror := NewGError(module, berrorCode, "", debugMessage, "", nil, Category_System)
+func NewGRpcError(module string, code codes.Code, berrorCode string, userMessage string, debugMessage string, category Category) (errOut error) {
+	gerror := NewGError(module, berrorCode, userMessage, debugMessage, "", nil, category)
 	return status.New(code, gerror.Error()).Err()
 
 }
@@ -68,9 +68,9 @@ func WrapGRpcError(module string, code codes.Code, err error) (errOut error) {
 		if berrorx.CausedBy != nil {
 			e += " caused by: " + berrorx.CausedBy.Error()
 		}
-		return NewGRpcError(module, code, berrorx.Code, e)
+		return NewGRpcError(module, code, berrorx.Code, berrorx.Msg, e, Category_Business)
 	default:
-		return NewGRpcError(module, code, berror.ErrInternal, err.Error())
+		return NewGRpcError(module, code, berror.ErrInternal, "", err.Error(), Category_System)
 	}
 
 }
