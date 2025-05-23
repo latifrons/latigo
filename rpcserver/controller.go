@@ -134,7 +134,8 @@ func (rpc *RpcWrapper) ResponseError(c *gin.Context, err error) bool {
 		if ok {
 			switch gerr.Category {
 			case grpcserver.Category_System:
-				rpc.ResponseDebug(c, http.StatusInternalServerError, ErrInternal, "internal error", grpcError.Message(), nil)
+				fallthrough
+				//rpc.ResponseDebug(c, http.StatusInternalServerError, ErrInternal, "internal error", grpcError.Message(), nil)
 			case grpcserver.Category_Business:
 				switch gerr.Code {
 				case ErrBadRequest:
@@ -155,7 +156,8 @@ func (rpc *RpcWrapper) ResponseError(c *gin.Context, err error) bool {
 		if ok {
 			switch gerr.Category {
 			case grpcserver.Category_System:
-				rpc.ResponseDebug(c, http.StatusInternalServerError, ErrInternal, "internal error", grpcError.Message(), nil)
+				fallthrough
+				//rpc.ResponseDebug(c, http.StatusInternalServerError, ErrInternal, "internal error", grpcError.Message(), nil)
 			case grpcserver.Category_Business:
 				switch gerr.Code {
 				case ErrBadRequest:
